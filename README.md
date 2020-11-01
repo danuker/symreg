@@ -1,7 +1,6 @@
 Symreg is a Symbolic Regression library aimed to be easy to use and fast.
 
-It uses the [fast non-dominated sort from NSGA-II](https://ieeexplore.ieee.org/document/996017) and applies pandas/numpy functions for speedy, 
-vectorized evaluation.
+It uses [NSGA-II](https://ieeexplore.ieee.org/document/996017) and applies numpy functions for speedy, vectorized evaluation.
 
 ## Usage
 
@@ -24,11 +23,11 @@ The following projects inspired me:
 
  * [Eureqa Formulize](http://nutonian.wikidot.com/), a proprietary piece of 
  otherwise-great software
- * [gplearn](https://github.com/trevorstephens/gplearn), which does not support multiobjective optimization, and which requires complexity for `scikit-learn` compatibility (support for pipeline and grid search).
+ * [gplearn](https://github.com/trevorstephens/gplearn), which does not support multiobjective optimization, and which offers `scikit-learn` compatibility (support for pipeline and grid search).
  
- Contrary to `gplearn`, we decided to avoid the `scikit-learn` dependency, but still keep the general design of "fit" and "predict", which are intuitive.
+ Contrary to `gplearn`, we decided to avoid depending on `scikit-learn` for implementation simplicity, but still keep the general API of "fit" and "predict", which is intuitive.
  
- Also, we do not perform function closures. All candidates are passed as-is to numpy, relying on the fitness function to eliminate numerically unstable ones (a fitness of infinity or NaN is accounted for).
+ Also contrary to `gplearn`, we do not perform function closures (patching of infinities). All candidates are passed as-is to numpy, relying on the fitness function to eliminate numerically unstable ones (a fitness of infinity or NaN is infinitely punished).
  
 ## Technical details
 
@@ -38,14 +37,15 @@ This allows both:
 * elitism (allowing the best to survive), and
 * maintaining genetic diversity (the number of individuals on the Pareto frontier is `O(n_objectives - 1)`).
 
-While NSGA-II also includes a density measure, we forego that for now, for simplicity.
+NSGA-II also includes a density measure, further encouraging diversity by spreading individuals out through the frontier.
 
 #### Engineering & Architecture 
 
-This implementation follows [**Test-Driven Development**](https://danuker.go.ro/tdd-revisited-pytest-updated-2020-09-03.html). TDD promises [faster development]() and a minimalist design. 
+This implementation follows [**Test-Driven Development**](https://danuker.go.ro/tdd-revisited-pytest-updated-2020-09-03.html). TDD promises [faster development]() and a minimalist design.
 
-The "unit" of a unit test is not a method, but a class which has publically-usable interface, through which the tests must do their job (including testing for detailed behavior). This is in order to keep the implementation flexible.
+The "unit" of a unit test is not necessarily a method, but a publically-usable interface, through which the tests must do their job (including testing for detailed behavior). This is in order to keep the implementation flexible; however, stochastic behavior is harder to test.
 
-That does not mean that we allow the tests to be slow. We keep the test suite running in under one second, because it allows us to refactor easily, while being confident the code is kept correct.
+That does not mean that we allow the tests to be slow. We keep the test suite running in under one second, because it allows us to refactor easily, while being confident the code stays correct.
 
 In addition, we strive to respect Gary Berhnardt's **Imperative Shell/Functional Core**, and Uncle Bob's **Clean Architecture**. These two are integrated and succintly explained [in the author's pretentiously-named blog post](https://danuker.go.ro/the-grand-unified-theory-of-software-architecture.html). The author is attempting to [dog-food](https://en.wikipedia.org/wiki/Eating_your_own_dog_food) this architectural style.
+
