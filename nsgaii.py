@@ -9,12 +9,14 @@ def _fillna(series, fill_value):
 
 
 class SolutionScore:
+    """And individual together with its score, used for fast nondominated sort"""
+
     def __init__(self, individual, scores):
         self.individual = individual
         self.scores = scores
 
     @classmethod
-    def scores_from_dict(cls, score_dict:dict):
+    def scores_from_dict(cls, score_dict: dict):
         return {cls(p, p_scores) for p, p_scores in score_dict.items()}
 
     def dominates(self, other):
@@ -48,10 +50,9 @@ def fast_non_dominated_sort(scores: dict) -> dict:
 
     S = defaultdict(set)  # p is superior to individuals in S[p]
     n = defaultdict(lambda: 0)      # p is dominated by n[p] individuals
-    rank = {}               # p has Pareto rank rank[p]
     fronts = defaultdict(set)  # individuals in front 1 are fronts[1]
 
-    # Create rank and domination map
+    # Create domination map
     for p in SolutionScore.scores_from_dict(scores):
         for q in SolutionScore.scores_from_dict(scores):
             if p.dominates(q):
@@ -60,7 +61,6 @@ def fast_non_dominated_sort(scores: dict) -> dict:
                 n[p] += 1
 
         if n[p] == 0:
-            rank[p] = 1
             fronts[1].update({p})
 
     # Iteratively eliminate current Pareto frontier, and find members of next best
@@ -72,12 +72,12 @@ def fast_non_dominated_sort(scores: dict) -> dict:
             for q in S[p]:
                 n[q] -= 1
                 if n[q] == 0:
-                    rank[q] = i+1
                     Q.update({q})
         i += 1
         fronts[i] = Q
 
     return {key: {v.individual for v in value} for key, value in fronts.items() if value}
+
 
 def _peek_any(set_or_dict):
     return list(set_or_dict)[0]
@@ -103,24 +103,38 @@ def crowding_distance_assignment(scores: dict) -> dict:
             distance[I[0]] = distance[I[-1]] = float('inf')         # boundary points are always selected
             fm_min, fm_max = scores[I[0]][m], scores[I[-1]][m]
             for i in range(1, len(I)-1):
-                distance[I[i]] += (scores[I[i+1]][m] - scores[I[i-1]][m]) / (fm_max - fm_min)
+                earlier = scores[I[i + 1]]
+                later = scores[I[i - 1]]
+                space = (earlier[m] - later[m])
+                normalized = (fm_max - fm_min)
+                distance[I[i]] += space / normalized
 
     except IndexError:
         # _peek_any failed: we don't have any individuals
-        return {}
+        pass
 
     return distance
 
 
-def nsgaii_cull(input, n_out):
-    pareto_front = fast_non_dominated_sort(input)
-    crowding_distance = crowding_distance_assignment(input)
-    individuals = []
+def nsgaii_cull(start_pop, n_out):
+    """
+    Remove individuals that are not fit enough according to NSGA-II
+
+    :param start_pop:   {individual -> (score1, score2, ...), ...}
+    :param n_out:       number of individuals to survive
+    :return:            {individual -> (score1, score2, ...), ...}
+    """
+    pareto_front = fast_non_dominated_sort(start_pop)
+    crowding_distance = crowding_distance_assignment(start_pop)
+    end_pop = []
     for front in sorted(pareto_front.keys()):
         sorted_front = sorted(pareto_front[front], key=lambda i: -crowding_distance[i])
-        individuals.extend(sorted_front)
+        end_pop.extend(sorted_front)
 
-    return {i: input[i] for i in individuals[:n_out]}
+        if len(end_pop) > n_out:
+            break
+
+    return {i: start_pop[i] for i in end_pop[:n_out]}
 
 
 if __name__ == '__main__':
