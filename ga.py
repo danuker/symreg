@@ -32,11 +32,16 @@ def _eval_block(token: str):
         return blocks[token]
 
 
-def _from_df(df: pd.DataFrame):
-    if df and isinstance(df[0], pd.DataFrame):
-        return tuple(df[0][c] for c in df[0])
+def _from_df(X):
+    """Unpack X matrix into columns as args"""
+    if len(X) == 1 and isinstance(X[0], pd.Series):
+        # Interpret Pandas series as column (1 random variable, many samples)
+        return X[0],
+    elif len(X) == 1 and isinstance(X[0], pd.DataFrame):
+        return tuple(X[0][c] for c in X[0])
     else:
-        return df
+        X = np.array(X)
+        return tuple(X.transpose())
 
 
 class Program:
@@ -67,6 +72,10 @@ class Program:
     def eval(self, *args):
         """Run program on args, computing output"""
         args = _from_df(args)
+        if len(args) != self._max_arity:
+            raise ValueError(
+                f'Wrong number of params/columns: was {len(args)}, expected {self._max_arity}'
+            )
         stack = self._p[:]
         ops = {v[0] for v in blocks.values()}
         result_stack = ()
@@ -84,7 +93,7 @@ class Program:
                 result_stack = (op,) + result_stack
 
         assert len(result_stack) == 1
-        return result_stack[0]
+        return np.array(result_stack[0]).transpose()
 
     def mutate(self):
         """Replace a source op while preserving all arities"""
@@ -139,8 +148,27 @@ class Program:
 
 
 class GA:
-    def __init__(self, individuals):
+    def __init__(self, individuals: set):
         self.individuals = set(individuals)
+
+    def reproduce(self):
+        return self.individuals.copy()
+
+    def evaluate(self, X):
+        raw_results = {
+            i: i.eval(X) for i in self.individuals
+        }
+
+        def _broadcast(v):
+            if isinstance(v, np.ndarray):
+                return v
+            else:
+                return np.full((len(X), 1), v)
+
+        return {
+            k: _broadcast(v) for k, v in raw_results.items()
+        }
+
 
 
 if __name__ == '__main__':
