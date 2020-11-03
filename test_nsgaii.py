@@ -33,6 +33,10 @@ def test_crowding_distance_assignment():
         {'best1': (1, 2), 'best2': (3, 3), 'mid': (2, 2.5)}
     ) == {'best1': float('inf'), 'best2': float('inf'), 'mid': 2}
 
+    assert crowding_distance_assignment(
+        {'best1': (1, 2), 'best2': (3, 2), 'mid': (2, 2)}
+    ) == {'best1': float('inf'), 'best2': float('inf'), 'mid': float('inf')}
+
 
 def test_nsgaii_cull():
     start = {'best1': (1, 2), 'best2': (2, 1), 'worse': (1, 1), 'worst': (2, 2)}

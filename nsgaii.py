@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import math
 
 
@@ -52,9 +52,11 @@ def fast_non_dominated_sort(scores: dict) -> dict:
     n = defaultdict(lambda: 0)      # p is dominated by n[p] individuals
     fronts = defaultdict(set)  # individuals in front 1 are fronts[1]
 
+    scores = SolutionScore.scores_from_dict(scores)
+
     # Create domination map
-    for p in SolutionScore.scores_from_dict(scores):
-        for q in SolutionScore.scores_from_dict(scores):
+    for p in scores:
+        for q in scores:
             if p.dominates(q):
                 S[p].update({q})
             elif q.dominates(p):
@@ -107,7 +109,10 @@ def crowding_distance_assignment(scores: dict) -> dict:
                 later = scores[I[i - 1]]
                 space = (earlier[m] - later[m])
                 normalized = (fm_max - fm_min)
-                distance[I[i]] += space / normalized
+                try:
+                    distance[I[i]] += space / normalized
+                except ZeroDivisionError:
+                    distance[I[i]] = float('inf')
 
     except IndexError:
         # _peek_any failed: we don't have any individuals
@@ -134,7 +139,7 @@ def nsgaii_cull(start_pop, n_out):
         if len(end_pop) > n_out:
             break
 
-    return {i: start_pop[i] for i in end_pop[:n_out]}
+    return OrderedDict((i, start_pop[i]) for i in end_pop[:n_out])
 
 
 if __name__ == '__main__':
