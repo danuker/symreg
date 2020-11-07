@@ -2,8 +2,8 @@
 # Line profiler: find out what lines slow
 # Need to decorate desired functions with @profile beforehand
 
-rm ga.py.lprof
-kernprof -l ga.py
-python -m line_profiler ga.py.lprof
+rm symreg.py.lprof
+kernprof -l symreg.py
+python -m line_profiler symreg.py.lprof
 
 

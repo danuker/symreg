@@ -1,62 +1,100 @@
 from collections import defaultdict, OrderedDict
-import math
-
-
-def _fillna(series, fill_value):
-    def _replace_elem(x):
-        return fill_value if math.isnan(x) else x
-    return tuple(_replace_elem(i) for i in series)
 
 
 class SolutionScore:
     """And individual together with its score, used for fast nondominated sort"""
 
-    def __init__(self, individual, scores):
+    def __init__(self, scores, individual):
         self.individual = individual
         self.scores = scores
 
     @classmethod
     def scores_from_dict(cls, score_dict: dict):
-        return {cls(p, p_scores) for p, p_scores in score_dict.items()}
+        return {SolutionScore(p_scores, p) for p, p_scores in score_dict.items()}
 
     def dominates(self, other):
-        """Smaller error is better"""
-        my_scores = _fillna(self.scores, float('inf'))
-        other_scores = _fillna(other.scores, float('inf'))
-
-        at_least_as_good = all(s <= o for s, o in zip(my_scores, other_scores))
-        better_in_some_respect = any(s < o for s, o in zip(my_scores, other_scores))
+        """Smaller error/complexity is better"""
+        at_least_as_good = all(s <= o for s, o in zip(self.scores, other.scores))
+        better_in_some_respect = any(s < o for s, o in zip(self.scores, other.scores))
 
         return at_least_as_good and better_in_some_respect
 
     def __repr__(self):
-        return f'SolutionScore({self.individual}, {self.scores})'
+        return f'SolutionScore({self.scores}, {self.individual})'
 
     def __eq__(self, other):
         """Needed otherwise duplication occurs in sets/dicts"""
         return self.individual == other.individual and self.scores == other.scores
 
     def __hash__(self):
-        return hash(self.individual) + hash(self.scores)
+        return hash((self.individual, self.scores))
 
 
-def fast_non_dominated_sort(scores: dict) -> dict:
+def fast_non_dominated_sort(scores: dict, sort=None) -> dict:
     """
-        Group individuals by rank of their Pareto
-        Tries to stay close to the paper's implementation (albeit it is quite long and imperative)
+        Group individuals by rank of their Pareto front
         :param scores: {individual -> (score1, score2, ...)}
+        :param sort: '2d' for cheap, 'nd' for general
         :returns {individual: Pareto rank}
     """
 
-    S = defaultdict(set)  # p is superior to individuals in S[p]
-    n = defaultdict(lambda: 0)      # p is dominated by n[p] individuals
-    fronts = defaultdict(set)  # individuals in front 1 are fronts[1]
-
     scores = SolutionScore.scores_from_dict(scores)
+    try:
+        dims = len(list(scores)[0].scores)
+    except IndexError:
+        dims = 2
+
+    if sort == '2d' and dims != 2:
+        raise ValueError(f'2D sort is not possible. Data has {dims} dimensions.')
+
+    if sort is None:
+        sort = '2d' if dims == 2 else 'nd'
+
+    if sort == '2d':
+        fronts = _2dim_pareto_ranking(scores)
+    elif sort == 'nd':
+        fronts = _ndim_pareto_ranking(scores)
+    else:
+        raise ValueError(f'Bad sort: {sort}')
+
+    return {
+        key: {v.individual for v in value}
+        for key, value in fronts.items() if value
+    }
+
+
+def _get_2d_front(sol_scores):
+    lexicographic = sorted(sol_scores, key=lambda ss: ss.scores)
+    min_y_seen = float('inf')
+    front = []
+    for s in lexicographic:
+        if s.scores[1] < min_y_seen:
+            min_y_seen = s.scores[1]
+            front.append(s)
+
+    return front
+
+
+def _2dim_pareto_ranking(sol_scores):
+    fronts = {}
+    i = 0
+    remaining = sol_scores
+    while remaining:
+        i += 1
+        fronts[i] = _get_2d_front(remaining)
+        remaining -= set(fronts[i])
+
+    return fronts
+
+
+def _ndim_pareto_ranking(scores):
+    S = defaultdict(set)  # p is superior to individuals in S[p]
+    n = defaultdict(lambda: 0)  # p is dominated by n[p] individuals
+    fronts = defaultdict(set)  # individuals in front 1 are fronts[1]
 
     # Create domination map
     for p in scores:
-        for q in scores:
+        for q in scores - {p}:
             if p.dominates(q):
                 S[p].update({q})
             elif q.dominates(p):
@@ -64,11 +102,10 @@ def fast_non_dominated_sort(scores: dict) -> dict:
 
         if n[p] == 0:
             fronts[1].update({p})
-
     # Iteratively eliminate current Pareto frontier, and find members of next best
     i = 1
     while fronts[i]:
-        Q = set()   # Next front
+        Q = set()  # Next front
 
         for p in fronts[i]:
             for q in S[p]:
@@ -77,8 +114,7 @@ def fast_non_dominated_sort(scores: dict) -> dict:
                     Q.update({q})
         i += 1
         fronts[i] = Q
-
-    return {key: {v.individual for v in value} for key, value in fronts.items() if value}
+    return fronts
 
 
 def _peek_any(set_or_dict):
@@ -88,8 +124,12 @@ def _peek_any(set_or_dict):
 def crowding_distance_assignment(scores: dict) -> dict:
     """
         Calculate crowding
-        Implemented as dimension-normalized distance between the 2 surrounding neighbors from given Pareto front
-        Tries to stay close to the paper's implementation (albeit it is quite long and imperative)
+
+        * Implemented as dimension-normalized distance between
+        the 2 surrounding neighbors from given Pareto front
+        * Tries to stay close to the paper's pseudocode
+        (albeit it is quite long and imperative-style)
+
         :param scores: {individual -> (score1, score2, ...)}
         :returns {individual: distance}
     """
@@ -97,22 +137,26 @@ def crowding_distance_assignment(scores: dict) -> dict:
     distance = {i: 0 for i in scores}
 
     try:
-        M = len(_peek_any(scores.values())) # number of objectives
+        M = len(_peek_any(scores.values()))  # number of objectives
         for m in range(M):
-            I = sorted(scores.keys(), key=lambda i: scores[i][m])   # Sort using each objective value
-            I = tuple(I)
+            # Sort using each objective value
+            inds = tuple(sorted(scores.keys(), key=lambda i: scores[i][m]))
 
-            distance[I[0]] = distance[I[-1]] = float('inf')         # boundary points are always selected
-            fm_min, fm_max = scores[I[0]][m], scores[I[-1]][m]
-            for i in range(1, len(I)-1):
-                earlier = scores[I[i + 1]]
-                later = scores[I[i - 1]]
+            fm_min, fm_max = scores[inds[0]][m], scores[inds[-1]][m]
+
+            for i in inds:
+                if scores[i][m] in [fm_min, fm_max]:
+                    distance[i] = float('inf')
+
+            for i in range(1, len(inds) - 1):
+                earlier = scores[inds[i + 1]]
+                later = scores[inds[i - 1]]
                 space = (earlier[m] - later[m])
                 normalized = (fm_max - fm_min)
                 try:
-                    distance[I[i]] += space / normalized
+                    distance[inds[i]] += space / normalized
                 except ZeroDivisionError:
-                    distance[I[i]] = float('inf')
+                    distance[inds[i]] = float('inf')
 
     except IndexError:
         # _peek_any failed: we don't have any individuals
@@ -121,15 +165,16 @@ def crowding_distance_assignment(scores: dict) -> dict:
     return distance
 
 
-def nsgaii_cull(start_pop, n_out):
+def nsgaii_cull(start_pop, n_out, sort=None):
     """
     Remove individuals that are not fit enough according to NSGA-II
 
     :param start_pop:   {individual -> (score1, score2, ...), ...}
     :param n_out:       number of individuals to survive
+    :param sort:        '2d' for cheap 2d, 'nd' for general
     :return:            {individual -> (score1, score2, ...), ...}
     """
-    pareto_front = fast_non_dominated_sort(start_pop)
+    pareto_front = fast_non_dominated_sort(start_pop, sort)
     crowding_distance = crowding_distance_assignment(start_pop)
     end_pop = []
     for front in sorted(pareto_front.keys()):
@@ -145,4 +190,4 @@ def nsgaii_cull(start_pop, n_out):
 if __name__ == '__main__':
     import pytest
 
-    pytest.main(['test_nsgaii.py', '-vv'])
+    pytest.main(['test_nsgaii.py', '--color=yes', '-v'])
