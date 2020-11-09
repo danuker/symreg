@@ -1,5 +1,7 @@
 SymReg is a Symbolic Regression library aimed to be easy to use and fast.
 
+You can use it to find an expression that turns inputs into output. The expression can use arbitrary building blocks, not just weighted sums as in linear models.
+
 It uses a modified [NSGA-II](https://ieeexplore.ieee.org/document/996017) algorithm, and applies NumPy functions for vectorized evaluation of input.
 
 ## Usage demo
@@ -25,14 +27,14 @@ for score in r.results():
 # Program('div add $0 $1 neg -2', 2) means (a + b)/(-(-2)), which is equivalent to (a+b)/2
 # It also found an argument-swapped version, and some simpler approximations.
 
-p = r.results()[-1]['program']
-p.eval([4, 6])
+r.predict([4, 6])
 # array(5)
 # The mean of 4 and 6 is 5. Correct!
 
-p.eval([[4, 1], [6, 2]])
+r.predict([[4, 6], [1, 2]])
 # array([5. , 1.5])
-# Also handles vectorized data.
+# Also handles vectorized data. Note that a row is a set of parameters.a=4 and b=6, then 
+# Here, $0=4 and $1=6 for the first row, and $0=1 and $1=2 for the second row in the 2d array.
 
 ```
 
@@ -95,15 +97,15 @@ Running all tests can be done with `python -m pytest`. Running tests on the inst
 The author wishes to eventually implement the following further features (but pull requests are welcome as well, of course):
     
 * Printing a program shows the Pandas column names instead of `$0`, `$1`...
-* Allow `fit_partial` straight from `symreg`
 * Add stopping criteria (right now there is only time):
     * stops when the earliest criterion hits: time, number of generations, or stagnation
 * Split validation data from training data, early stopping on validation error increase
+* Allow choosable fitness function and coding blocks
+* Allow `fit_partial` straight from `symreg`
 * Multiprocessing (threading is not enough, because we're CPU bound and there is the GIL).
 * Implement predict_proba, which polls all the individuals in a population?
 * Pretty plots while training
     * Perhaps a UI like Formulize?
-* Allow choosable fitness function and coding blocks
 * Switch the Program representation to a tree instead of a tuple. This would allow:
     * Better printing of programs (with parentheses, or infix notation, or spreadsheet formulas...)
     * Crossover between individuals
