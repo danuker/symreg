@@ -90,16 +90,17 @@ These principles let us quickly experiment. We tried 3 domination-frontier algor
 
 Running all tests can be done with `pytest`. Running tests specific to a file can be done by executing the file in question.
 
-## Future
+## Next steps
 
 The author wishes to eventually implement the following further features (but pull requests are welcome as well, of course):
     
 * Printing a program shows the Pandas column names instead of `$0`, `$1`...
 * Allow `fit_partial` straight from `symreg`
-* Multiprocessing (threading is not enough, because we're CPU bound and there is the GIL).
-* Implement predict_proba, which polls all the individuals in a population?
 * Add stopping criteria (right now there is only time):
     * stops when the earliest criterion hits: time, number of generations, or stagnation
+* Split validation data from training data, early stopping on validation error increase
+* Multiprocessing (threading is not enough, because we're CPU bound and there is the GIL).
+* Implement predict_proba, which polls all the individuals in a population?
 * Pretty plots while training
     * Perhaps a UI like Formulize?
 * Allow choosable fitness function and coding blocks

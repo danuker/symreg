@@ -1,7 +1,7 @@
 from time import time
 
-from ga import GA
-from nsgaii import _ndim_pareto_ranking, SolutionScore
+from symreg.ga import GA
+from symreg.nsgaii import ndim_pareto_ranking, SolutionScore
 
 
 class Regressor:
@@ -54,7 +54,7 @@ class Regressor:
     def results(self):
         scores = self._ga.old_scores
         scores = SolutionScore.scores_from_dict(scores)
-        front = _ndim_pareto_ranking(scores)[1]
+        front = ndim_pareto_ranking(scores)[1]
         front = [{'error': ss.scores[0], 'complexity': ss.scores[1], 'program': ss.individual} for ss in front]
         return sorted(front, key=lambda s: s['complexity'])
 

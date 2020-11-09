@@ -53,7 +53,7 @@ def fast_non_dominated_sort(scores: dict, sort=None) -> dict:
     if sort == '2d':
         fronts = _2dim_pareto_ranking(scores)
     elif sort == 'nd':
-        fronts = _ndim_pareto_ranking(scores)
+        fronts = ndim_pareto_ranking(scores)
     else:
         raise ValueError(f'Bad sort: {sort}')
 
@@ -87,7 +87,7 @@ def _2dim_pareto_ranking(sol_scores):
     return fronts
 
 
-def _ndim_pareto_ranking(scores):
+def ndim_pareto_ranking(scores):
     S = defaultdict(set)  # p is superior to individuals in S[p]
     n = defaultdict(lambda: 0)  # p is dominated by n[p] individuals
     fronts = defaultdict(set)  # individuals in front 1 are fronts[1]

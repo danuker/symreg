@@ -1,4 +1,4 @@
-from nsgaii import fast_non_dominated_sort, crowding_distance_assignment, nsgaii_cull
+from symreg.nsgaii import fast_non_dominated_sort, crowding_distance_assignment, nsgaii_cull
 
 
 def test_fast_non_dominated_sort():

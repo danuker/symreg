@@ -1,7 +1,7 @@
 import random
 import pandas as pd
 
-from symreg import Regressor
+from symreg.regressor import Regressor
 
 
 def test_regressor():
@@ -74,6 +74,7 @@ def test_args_are_passed():
 
 
 if __name__ == '__main__':
-    import pytest
+    # import pytest
 
-    pytest.main(['test_symreg.py', '--color=yes'])
+    # pytest.main(['test_symreg.py', '--color=yes'])
+    test_regressor_op()

@@ -3,7 +3,7 @@ from collections import defaultdict
 import random
 import numpy as np
 
-from nsgaii import nsgaii_cull
+from .nsgaii import nsgaii_cull
 
 np.seterr(all='ignore')  # We know we will get numerical funny business
 
@@ -31,7 +31,7 @@ def fitness(program, Xt, y):
         diff = (y - program.eval(Xt))
         error = np.average(diff * diff)
         if error < 0 or math.isnan(error):
-            raise ValueError('Gaming the system')
+            return float('inf'), complexity
         return error, complexity
     except ValueError:
         return float('inf'), complexity

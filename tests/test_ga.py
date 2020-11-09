@@ -1,4 +1,4 @@
-from ga import GA, Program, fitness
+from symreg.ga import Program, fitness
 import numpy as np
 import pandas as pd
 from pytest import raises
