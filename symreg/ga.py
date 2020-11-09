@@ -291,8 +291,3 @@ class GA:
         self.old_scores = final
         self.individuals = set(final.keys())
 
-
-if __name__ == '__main__':
-    import pytest
-
-    pytest.main(['test_ga.py', '--color=yes'])

@@ -185,9 +185,3 @@ def nsgaii_cull(start_pop, n_out, sort=None):
             break
 
     return OrderedDict((i, start_pop[i]) for i in end_pop[:n_out])
-
-
-if __name__ == '__main__':
-    import pytest
-
-    pytest.main(['test_nsgaii.py', '--color=yes', '-v'])

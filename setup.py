@@ -14,7 +14,6 @@ setuptools.setup(
     url="https://github.com/danuker/symreg",
     packages=setuptools.find_packages(exclude=('tests', 'tests.*')),
     install_requires=['numpy'],
-    test_requires=['pytest', 'pandas'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

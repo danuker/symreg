@@ -58,8 +58,3 @@ class Regressor:
         front = [{'error': ss.scores[0], 'complexity': ss.scores[1], 'program': ss.individual} for ss in front]
         return sorted(front, key=lambda s: s['complexity'])
 
-
-if __name__ == '__main__':
-    import pytest
-
-    pytest.main(['test_symreg.py', '--color=yes'])

@@ -88,7 +88,7 @@ In addition to TDD, we strive to respect Gary Berhnardt's **Imperative Shell/Fun
 
 These principles let us quickly experiment. We tried 3 domination-frontier algorithms, and decided to keep 2 of them. We barely had to modify the tests, because we tested through the stable, higher-level methods also used by the other classes. We did use the debugger a bit, though.
 
-Running all tests can be done with `pytest`. Running tests specific to a file can be done by executing the file in question.
+Running all tests can be done with `python -m pytest`. Running tests on the installed `symreg` is done with just `pytest`. You can make the system pretend it's installed with `python setup.py develop`.
 
 ## Next steps
 

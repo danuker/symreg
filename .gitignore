@@ -2,4 +2,5 @@
 .mutmut-cache
 __pycache__/
 symreg.iml
-
+env/
+symreg.egg-info
