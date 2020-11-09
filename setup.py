@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="symreg",
-    version="0.0.1",
+    version="0.0.2",
     author="Dan Gheorghe Haiduc",
     author_email="danuthaiduc@gmail.com.com",
     description="A Symbolic Regression engine",
