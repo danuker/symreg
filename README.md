@@ -33,12 +33,14 @@ r.predict([4, 6])
 
 r.predict([[4, 6], [1, 2]])
 # array([5. , 1.5])
-# Also handles vectorized data. Note that a row is a set of parameters.a=4 and b=6, then 
+# Also handles vectorized data. Note that a row is a set of parameters.
 # Here, $0=4 and $1=6 for the first row, and $0=1 and $1=2 for the second row in the 2d array.
 
 ```
 
 You can see more examples of usage in the [Jupyter Notebook file](Metaopt.ipynb).
+
+Install with `pip install symreg`.
 
 ## Inspiration
 
