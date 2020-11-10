@@ -4,3 +4,6 @@ __pycache__/
 symreg.iml
 env/
 symreg.egg-info
+dist/
+build/
+
