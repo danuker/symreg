@@ -34,9 +34,9 @@ def test_regressor_constant_pandas():
 
 
 def test_regressor_op():
-    r = Regressor(duration=.3)
+    r = Regressor(duration=.1)
     X = [(random.gauss(0, 10), random.gauss(0, 10)) for _ in range(5)]
-    y = [a-b for a, b in X]  # Ideal program should be: 'sub $0 $1'
+    y = [a - b for a, b in X]  # Ideal program should be: 'sub $0 $1'
 
     r.fit(X, y)
     assert r.predict([[0, 3]]) == [-3], \
@@ -47,6 +47,8 @@ def test_regressor_op():
 
 def test_args_are_passed():
     args = {
+        'duration': .1,
+        'verbose': False,
         'n': 14,
         'zero_program_chance': 0.01321,
         'grow_root_mutation_chance': .02567,
@@ -55,11 +57,7 @@ def test_args_are_passed():
         'float_std': 1,
     }
 
-    r = Regressor(
-        duration=.1,
-        verbose=False,
-        **args
-    )
+    r = Regressor(**args)
 
     r.fit([[1]], [1])
     ga = r._ga
@@ -73,8 +71,26 @@ def test_args_are_passed():
     assert prog.float_std == args['float_std']
 
 
+def test_pandas_columns_as_arg_names():
+    X = pd.DataFrame({
+        'a': [1, 2, 3, 4, 5],
+        'b': [0, 1, 0, 1, 0]})
+    y = X['a'] - X['b']
+
+    r = Regressor(duration=.3)
+    r.fit(X, y)
+    program = str(r.results()[-1]['program'])
+    assert '$a' in program and '$b' in program
+
+
 if __name__ == '__main__':
     # import pytest
 
-    # pytest.main(['test_symreg.py', '--color=yes'])
+    # pytest.main(['tests/test_regressor.py', '--color=yes'])
+    test_regressor()
+    test_regressor_constant()
+    test_regressor_constant_pandas()
     test_regressor_op()
+    test_args_are_passed()
+    test_pandas_columns_as_arg_names()
+

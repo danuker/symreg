@@ -97,8 +97,7 @@ Running all tests can be done with `python -m pytest`. Running tests on the inst
 ## Next steps
 
 The author wishes to eventually implement the following further features (but pull requests are welcome as well, of course):
-    
-* Printing a program shows the Pandas column names instead of `$0`, `$1`...
+
 * Add stopping criteria (right now there is only time):
     * stops when the earliest criterion hits: time, number of generations, or stagnation
 * Split validation data from training data, early stopping on validation error increase
@@ -108,7 +107,7 @@ The author wishes to eventually implement the following further features (but pu
 * Implement predict_proba, which polls all the individuals in a population?
 * Pretty plots while training
     * Perhaps a UI like Formulize?
-* Switch the Program representation to a tree instead of a tuple. This would allow:
+* ~~Switch the Program representation to a tree instead of a tuple.~~ This would allow:
     * Better printing of programs (with parentheses, or infix notation, or spreadsheet formulas...)
     * Crossover between individuals
     * Easier reduction/pruning mutations (we currently only have additive and replacement mutations)

@@ -27,14 +27,16 @@ class Regressor:
         )
         self.duration = duration
         self.verbose = verbose
+        self.columns = ()
 
     def fit(self, X, y):
         start = time()
         self._ga.fit(X, y)
-
+        last_printed = time()
         taken = time() - start
-        last_printed = start
-        while taken < self.duration:
+
+        while self.can_continue(taken):
+            taken = time() - start
             if self.verbose and time() - last_printed > 5:
                 last_printed = time()
                 print(f'Time left  : {int(self.duration - taken + .9)}s')
@@ -42,10 +44,11 @@ class Regressor:
 
             self._ga.fit_partial(X, y)
 
-            taken = time() - start
-
         if self.verbose:
             print(f'Generations evolved: {self._ga.steps_taken}')
+
+    def can_continue(self, taken):
+        return taken < self.duration
 
     def predict(self, X):
         y_pred = self._ga.predict(X)

@@ -6,4 +6,5 @@ env/
 symreg.egg-info
 dist/
 build/
-
+.ipynb_checkpoints/
+gp_examples.ipynb
