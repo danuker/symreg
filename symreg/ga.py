@@ -38,7 +38,7 @@ def fitness(program, Xt, y):
 
 
 def set_choice(s):
-    return random.choice(list(s))
+    return random.choice(tuple(s))
 
 
 def is_elementary(obj):
@@ -186,7 +186,7 @@ class Program:
         new_op = set_choice(blocks)
         needed_args = blocks[new_op][1]
         new_args = [self._new_leaf('0')] * needed_args
-        if random.choice([True, False]):
+        if random.random() < 0.5:
             new_args[random.randrange(len(new_args))] = self._source[i]
 
         new_source = self._source[:i] \
@@ -216,28 +216,32 @@ class Program:
             # We must choose a constant or a parameter
             chosen = self._new_leaf(op)
         else:
-            chosen = random.choice(list(candidates))
+            chosen = set_choice(candidates)
         new_source = self._source[:i] + (chosen,) + self._source[i + 1:]
 
         return self.from_source(new_source)
 
     @staticmethod
     def _ops_with_same_arity(op):
-        return set(name for name in blocks if arities[op] == arities[name]) - {op}
+        return tuple(
+            name for name in blocks
+            if arities[op] == arities[name] and name != op
+        )
 
     def _new_leaf(self, op):
-        choices = set()
+        choices = []
 
         if not op.startswith('$'):
-            choices.add(str(float(op) + random.gauss(0, self.float_std)))
+            choices.append(str(float(op) + random.gauss(0, self.float_std)))
         else:
-            choices.add(str(random.gauss(0, self.float_std)))
-        choices.add(str(float(int(random.gauss(0, self.int_std)))))
+            choices.append(str(random.gauss(0, self.float_std)))
+        choices.append(str(float(int(random.gauss(0, self.int_std)))))
 
         if self._max_arity:
-            choices.add(f'${random.randrange(self._max_arity)}')
+            choices.append(f'${random.randrange(self._max_arity)}')
 
-        return set_choice(choices - {op})
+        final = set_choice(c for c in choices if c != op)
+        return final
 
     def __repr__(self):
         s = f"Program('{' '.join(self._source)}', {self._max_arity})"
@@ -269,7 +273,7 @@ class GA:
         self.float_std = float_std
 
         self.columns = ()
-        self.individuals = set()
+        self.individuals = ()
         self.steps_taken = 0
         self._max_arity = None
         self.old_scores = dict()
@@ -309,7 +313,7 @@ class GA:
             columns=self.columns,
         )
 
-        self.individuals = set(
+        self.individuals = tuple(
             p if random.random() < self.zero_program_chance else p.mutate()
             for _ in range(self.n)
         )
@@ -324,10 +328,10 @@ class GA:
             self._step(Xt, y)
 
     def _step(self, Xt, y):
-        new_gen = {i.mutate() for i in self.individuals}
+        new_gen = (i.mutate() for i in self.individuals)
         new_scores = {i: fitness(i, Xt, y) for i in new_gen if i not in self.old_scores}
         self.old_scores.update(new_scores)
         final = nsgaii_cull(self.old_scores, self.n)
         self.steps_taken += 1
         self.old_scores = final
-        self.individuals = set(final.keys())
+        self.individuals = tuple(final)

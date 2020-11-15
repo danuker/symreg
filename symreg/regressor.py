@@ -8,7 +8,8 @@ class Regressor:
     def __init__(
             self,
             n=50,
-            duration=5,
+            duration=float('inf'),
+            generations=float('inf'),
             verbose=False,
             zero_program_chance=0.5,
             grow_root_mutation_chance=.3,
@@ -28,6 +29,8 @@ class Regressor:
         self.duration = duration
         self.verbose = verbose
         self.columns = ()
+        self.training_details = {'steps': 0, 'duration': 0}
+        self.steps_to_take = generations
 
     def fit(self, X, y):
         start = time()
@@ -37,18 +40,24 @@ class Regressor:
 
         while self.can_continue(taken):
             taken = time() - start
-            if self.verbose and time() - last_printed > 5:
+            if self.verbose and time() - last_printed > 10:
                 last_printed = time()
                 print(f'Time left  : {int(self.duration - taken + .9)}s')
                 print(f'Best so far: {min(s for s in self._ga.old_scores.values())} (error, complexity)')
 
             self._ga.fit_partial(X, y)
 
+            self.training_details = {
+                'generations': self._ga.steps_taken,
+                'duration': time() - start,
+            }
+
         if self.verbose:
-            print(f'Generations evolved: {self._ga.steps_taken}')
+            print(f'Complete. {self.training_details}')
 
     def can_continue(self, taken):
-        return taken < self.duration
+        return taken < self.duration and \
+               self._ga.steps_taken < self.steps_to_take
 
     def predict(self, X):
         y_pred = self._ga.predict(X)

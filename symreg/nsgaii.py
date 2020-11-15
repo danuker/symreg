@@ -1,5 +1,7 @@
 from collections import defaultdict, OrderedDict
 
+from ordered_set import OrderedSet
+
 
 class SolutionScore:
     """And individual together with its score, used for fast nondominated sort"""
@@ -10,7 +12,8 @@ class SolutionScore:
 
     @classmethod
     def scores_from_dict(cls, score_dict: dict):
-        return {SolutionScore(p_scores, p) for p, p_scores in score_dict.items()}
+        return OrderedSet(
+            SolutionScore(p_scores, p) for p, p_scores in score_dict.items())
 
     def dominates(self, other):
         """Smaller error/complexity is better"""
@@ -58,7 +61,7 @@ def fast_non_dominated_sort(scores: dict, sort=None) -> dict:
         raise ValueError(f'Bad sort: {sort}')
 
     return {
-        key: {v.individual for v in value}
+        key: OrderedSet(v.individual for v in value)
         for key, value in fronts.items() if value
     }
 
@@ -88,9 +91,9 @@ def _2dim_pareto_ranking(sol_scores):
 
 
 def ndim_pareto_ranking(scores):
-    S = defaultdict(set)  # p is superior to individuals in S[p]
+    S = defaultdict(OrderedSet)  # p is superior to individuals in S[p]
     n = defaultdict(lambda: 0)  # p is dominated by n[p] individuals
-    fronts = defaultdict(set)  # individuals in front 1 are fronts[1]
+    fronts = defaultdict(OrderedSet)  # individuals in front 1 are fronts[1]
 
     # Create domination map
     for p in scores:
@@ -105,7 +108,7 @@ def ndim_pareto_ranking(scores):
     # Iteratively eliminate current Pareto frontier, and find members of next best
     i = 1
     while fronts[i]:
-        Q = set()  # Next front
+        Q = OrderedSet()  # Next front
 
         for p in fronts[i]:
             for q in S[p]:
