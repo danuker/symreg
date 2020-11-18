@@ -10,6 +10,7 @@ class Regressor:
             n=50,
             duration=float('inf'),
             generations=float('inf'),
+            stagnation_limit=float('inf'),
             verbose=False,
             zero_program_chance=0.5,
             grow_root_mutation_chance=.3,
@@ -30,6 +31,9 @@ class Regressor:
         self.columns = ()
         self.training_details = {'steps': 0, 'duration': 0}
         self.steps_to_take = generations
+        self.max_stagnation_generations = stagnation_limit
+        self._last_results = {}
+        self._stagnation = 0
 
     def fit(self, X, y):
         start = time()
@@ -46,8 +50,16 @@ class Regressor:
 
             self._ga.fit_partial(X, y)
 
+            new_results = self.results()
+            if new_results != self._last_results:
+                self._stagnation = 0
+                self._last_results = new_results
+            else:
+                self._stagnation += 1
+
             self.training_details = {
                 'generations': self._ga.steps_taken,
+                'stagnated_generations': self._stagnation,
                 'duration': time() - start,
             }
 
@@ -56,7 +68,8 @@ class Regressor:
 
     def can_continue(self, taken):
         return taken < self.duration and \
-               self._ga.steps_taken < self.steps_to_take
+               self._ga.steps_taken < self.steps_to_take and \
+               self._stagnation < self.max_stagnation_generations
 
     def predict(self, X):
         y_pred = self._ga.predict(X)

@@ -72,7 +72,7 @@ def test_deterministic():
 
 def test_args_are_passed():
     args = {
-        'duration': .1,
+        'duration': .01,
         'verbose': False,
         'n': 14,
         'zero_program_chance': 0.01321,
@@ -102,7 +102,7 @@ def test_pandas_columns_as_arg_names():
         'b': [0, 1, 0, 1, 0]})
     y = X['a'] - X['b']
 
-    r = make_seeded_regressor(generations=3)
+    r = make_seeded_regressor(generations=3, n=10)
     r.fit(X, y)
     program = str(r.results()[-1]['program'])
     assert '$a' in program or '$b' in program
@@ -115,16 +115,21 @@ def test_stopping_conditions():
         'b': [0, 1, 0, 1, 0]})
     y = X['a'] - X['b']
 
-    r = make_seeded_regressor(generations=3)
+    r = make_seeded_regressor(generations=3, n=1)
     r.fit(X, y)
     assert r.training_details['generations'] == 3
 
-    target_duration = .2
-    r = Regressor(duration=target_duration)
+    target_duration = .1
+    r = make_seeded_regressor(duration=target_duration, n=2)
     start = time()
     r.fit(X, y)
     duration = time() - start
-    assert (duration - target_duration) < 0.2
+    assert (duration - target_duration) < 0.02
+
+    target_stagnation = 2
+    r = make_seeded_regressor(stagnation_limit=target_stagnation, n=2)
+    r.fit(X, y)
+    assert r.training_details['stagnated_generations'] == target_stagnation
 
 
 if __name__ == '__main__':
@@ -138,3 +143,4 @@ if __name__ == '__main__':
     # test_args_are_passed()
     # test_pandas_columns_as_arg_names()
     # test_deterministic()
+    # test_stopping_conditions()

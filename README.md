@@ -28,7 +28,7 @@ for score in r.results():
 # It also found an argument-swapped version, and some simpler approximations.
 
 r.predict([4, 6])
-# array(5)
+# array([5.])
 # The mean of 4 and 6 is 5. Correct!
 
 r.predict([[4, 6], [1, 2]])
@@ -98,11 +98,8 @@ Running all tests can be done with `python -m pytest`. Running tests on the inst
 
 The author wishes to eventually implement the following further features (but pull requests are welcome as well, of course):
 
-* Add stopping criteria (right now there is only time):
-    * stops when the earliest criterion hits: time, number of generations, or stagnation
 * Split validation data from training data, early stopping on validation error increase
 * Allow choosable fitness function and coding blocks
-* Allow `fit_partial` straight from `symreg`
 * Multiprocessing (threading is not enough, because we're CPU bound and there is the GIL).
 * Implement predict_proba, which polls all the individuals in a population?
 * Pretty plots while training
@@ -117,5 +114,6 @@ The author wishes to eventually implement the following further features (but pu
 * Gradient descent for constants
     * Can be implemented as a mutation; but must tune its performance (i.e., how often should it happen, how much time to spend etc.)
 * Automated speed and quality tests (currently, we test manually using the notebook and/or profiler).
+* Allow `fit_partial` straight from `symreg`
 
 Feedback is appreciated. Please comment as a GitHub issue, or any other way ([you can contact the author directly here](https://danuker.go.ro/pages/contactabout.html)).
