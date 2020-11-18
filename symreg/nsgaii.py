@@ -1,19 +1,19 @@
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
+from dataclasses import dataclass
 
 from ordered_set import OrderedSet
 
 
+@dataclass(frozen=True)
 class SolutionScore:
-    """And individual together with its score, used for fast nondominated sort"""
-
-    def __init__(self, scores, individual):
-        self.individual = individual
-        self.scores = scores
+    """And individual together with its scores, used for fast nondominated sort"""
+    individual: object
+    scores: tuple
 
     @classmethod
     def scores_from_dict(cls, score_dict: dict):
         return OrderedSet(
-            SolutionScore(p_scores, p) for p, p_scores in score_dict.items())
+            SolutionScore(p, p_scores) for p, p_scores in score_dict.items())
 
     def dominates(self, other):
         """Smaller error/complexity is better"""
@@ -21,16 +21,6 @@ class SolutionScore:
         better_in_some_respect = any(s < o for s, o in zip(self.scores, other.scores))
 
         return at_least_as_good and better_in_some_respect
-
-    def __repr__(self):
-        return f'SolutionScore({self.scores}, {self.individual})'
-
-    def __eq__(self, other):
-        """Needed otherwise duplication occurs in sets/dicts"""
-        return self.individual == other.individual and self.scores == other.scores
-
-    def __hash__(self):
-        return hash((self.individual, self.scores))
 
 
 def fast_non_dominated_sort(scores: dict, sort=None) -> dict:
@@ -187,4 +177,4 @@ def nsgaii_cull(start_pop, n_out, sort=None):
         if len(end_pop) > n_out:
             break
 
-    return OrderedDict((i, start_pop[i]) for i in end_pop[:n_out])
+    return {i: start_pop[i] for i in end_pop[:n_out]}

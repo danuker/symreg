@@ -19,7 +19,6 @@ class Regressor:
     ):
         self._ga = GA(
             n=n,
-            steps=1,
             zero_program_chance=zero_program_chance,
             grow_root_mutation_chance=grow_root_mutation_chance,
             grow_leaf_mutation_chance=grow_leaf_mutation_chance,

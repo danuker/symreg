@@ -26,7 +26,7 @@ opnames = {v[0]: opname for opname, v in blocks.items()}
 
 
 def fitness(program, Xt, y):
-    complexity = len(program._source)
+    complexity = len(program.source)
     try:
         diff = np.subtract(y, program.eval(Xt))
         error = np.average(diff * diff)
@@ -240,8 +240,7 @@ class Program:
         if self._max_arity:
             choices.append(f'${random.randrange(self._max_arity)}')
 
-        final = set_choice(c for c in choices if c != op)
-        return final
+        return set_choice(c for c in choices if c != op)
 
     def __repr__(self):
         s = f"Program('{' '.join(self._source)}', {self._max_arity})"
@@ -257,7 +256,7 @@ class Program:
 
 
 class GA:
-    def __init__(self, n, steps,
+    def __init__(self, n,
                  zero_program_chance,
                  grow_leaf_mutation_chance,
                  grow_root_mutation_chance,
@@ -265,7 +264,6 @@ class GA:
                  float_std,
                  ):
         self.n = n
-        self.steps = steps
         self.zero_program_chance = zero_program_chance
         self.grow_leaf_mutation_chance = grow_leaf_mutation_chance
         self.grow_root_mutation_chance = grow_root_mutation_chance
@@ -319,13 +317,11 @@ class GA:
         )
         self.old_scores = dict()
         self.steps_taken = 0
-        for i in range(self.steps):
-            self._step(params, y)
+        self._step(params, y)
 
     def fit_partial(self, X, y):
         Xt = (self._from_df(X))
-        for i in range(self.steps):
-            self._step(Xt, y)
+        self._step(Xt, y)
 
     def _step(self, Xt, y):
         new_gen = (i.mutate() for i in self.individuals)
