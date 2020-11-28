@@ -1,7 +1,22 @@
+from dataclasses import dataclass
 from time import time
 
 from symreg.ga import GA
-from symreg.nsgaii import ndim_pareto_ranking, SolutionScore
+
+
+@dataclass(frozen=True)
+class Configuration:
+    n: int = 50
+    zero_program_chance: float = 0.5
+    hoist_mutation_chance: float = .13
+    grow_root_mutation_chance: float = .13
+    grow_leaf_mutation_chance: float = .3
+    complete_tree_as_new_subtree_chance: float = .5
+    mutation_children: float = .7
+    crossover_children: float = .7
+    simplify_chance: float = .8
+    int_std: float = 3
+    float_std: float = 4
 
 
 class Regressor:
@@ -13,19 +28,32 @@ class Regressor:
             stagnation_limit=float('inf'),
             verbose=False,
             zero_program_chance=0.5,
-            grow_root_mutation_chance=.3,
-            grow_leaf_mutation_chance=.4,
+            hoist_mutation_chance=.13,
+            grow_root_mutation_chance=.13,
+            grow_leaf_mutation_chance=.3,
+            complete_tree_as_new_subtree_chance=.5,
+            mutation_children=.7,
+            crossover_children=.7,
+            simplify_chance=.8,
             int_std=3,
             float_std=4,
     ):
-        self._ga = GA(
+        self.conf = Configuration(
             n=n,
             zero_program_chance=zero_program_chance,
+            hoist_mutation_chance=hoist_mutation_chance,
             grow_root_mutation_chance=grow_root_mutation_chance,
             grow_leaf_mutation_chance=grow_leaf_mutation_chance,
+            complete_tree_as_new_subtree_chance=complete_tree_as_new_subtree_chance,
+            mutation_children=mutation_children,
+            crossover_children=crossover_children,
+            simplify_chance=simplify_chance,
             int_std=int_std,
             float_std=float_std,
         )
+
+        self._ga = GA(config=self.conf)
+
         self.duration = duration
         self.verbose = verbose
         self.columns = ()
@@ -45,7 +73,7 @@ class Regressor:
             taken = time() - start
             if self.verbose and time() - last_printed > 10:
                 last_printed = time()
-                print(f'Time left  : {int(self.duration - taken + .9)}s')
+                print(f'Time left  : {(self.duration - taken):.2f}s')
                 print(f'Best so far: {min(s for s in self._ga.old_scores.values())} (error, complexity)')
 
             self._ga.fit_partial(X, y)
@@ -76,9 +104,9 @@ class Regressor:
         return y_pred
 
     def results(self):
-        scores = self._ga.old_scores
-        scores = SolutionScore.scores_from_dict(scores)
-        front = ndim_pareto_ranking(scores)[1]
-        front = [{'error': ss.scores[0], 'complexity': ss.scores[1], 'program': ss.individual} for ss in front]
+        scores = self._ga.front
+        front = [
+            {'error': score[0], 'complexity': score[1], 'program': program}
+            for program, score in scores.items()
+        ]
         return sorted(front, key=lambda s: s['complexity'])
-

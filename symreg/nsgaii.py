@@ -1,7 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 
-from ordered_set import OrderedSet
+from orderedset import OrderedSet
 
 
 @dataclass(frozen=True)
@@ -75,7 +75,7 @@ def _2dim_pareto_ranking(sol_scores):
     while remaining:
         i += 1
         fronts[i] = _get_2d_front(remaining)
-        remaining -= set(fronts[i])
+        remaining.difference_update(fronts[i])
 
     return fronts
 
@@ -177,4 +177,5 @@ def nsgaii_cull(start_pop, n_out, sort=None):
         if len(end_pop) > n_out:
             break
 
-    return {i: start_pop[i] for i in end_pop[:n_out]}
+    flat = {i: start_pop[i] for i in end_pop[:n_out]}
+    return flat, pareto_front[1]

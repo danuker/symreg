@@ -12,7 +12,7 @@ def make_seeded_regressor(seed=0, **args):
 
 
 def test_regressor():
-    r = make_seeded_regressor(generations=2)
+    r = make_seeded_regressor(generations=3)
     X = [[1, 0], [1, 1], [1, 2]]
     y = [0, 1, 2]
 
@@ -41,7 +41,7 @@ def test_regressor_constant_pandas():
 
 
 def test_regressor_op():
-    r = make_seeded_regressor(seed=2, generations=3)
+    r = make_seeded_regressor(generations=10)
 
     X = [(random.gauss(0, 10), random.gauss(0, 10)) for _ in range(5)]
     y = [a - b for a, b in X]  # Ideal program should be: 'sub $0 $1'
@@ -55,19 +55,18 @@ def test_deterministic():
     Do not use sets, only OrderedSets
     Fortunately, dicts iterate by order of adding data.
     https://stackoverflow.com/questions/36317520/seeded-python-rng-showing-non-deterministic-behavior-with-sets
-    After modifying code, it is OK to update the prediction at most once.
-    Subsequent test runs must yield the same outcome (determined by seed).
-    Get a float with many decimals as the output, it is likelier to change
-        if the process changes.
     """
 
     X = [(random.gauss(0, 10), random.gauss(0, 10)) for _ in range(5)]
-    y = [a*7.11 - b + 7.13212 for a, b in X]  # Ideal program should be: 'sub $0 $1'
+    y = [a*7.11 - b ** 7.13212 for a, b in X]  # Ideal program should be: 'sub $0 $1'
 
-    r = make_seeded_regressor(3, generations=5, n=5)
+    r = make_seeded_regressor(generations=10, n=10)
     r.fit(X, y)
 
-    assert r.predict([[0, 3]]) == [23.085536923187668]
+    g = make_seeded_regressor(generations=10, n=10)
+    g.fit(X, y)
+
+    assert r.results() == g.results()
 
 
 def test_args_are_passed():
@@ -75,9 +74,14 @@ def test_args_are_passed():
         'duration': .01,
         'verbose': False,
         'n': 14,
-        'zero_program_chance': 0.01321,
-        'grow_root_mutation_chance': .02567,
-        'grow_leaf_mutation_chance': .02578,
+        'zero_program_chance': .1,
+        'hoist_mutation_chance': .2,
+        'grow_root_mutation_chance': .3,
+        'grow_leaf_mutation_chance': .4,
+        'complete_tree_as_new_subtree_chance': .5,
+        'mutation_children': .6,
+        'crossover_children': .7,
+        'simplify_chance': .8,
         'int_std': 4,
         'float_std': 1,
     }
@@ -88,12 +92,18 @@ def test_args_are_passed():
     ga = r._ga
     progs = list(r.results())
     prog = progs[0]['program']
-    assert ga.n == args['n']
-    assert ga.zero_program_chance == args['zero_program_chance']
-    assert prog.grow_root_mutation_chance == args['grow_root_mutation_chance']
-    assert prog.grow_leaf_mutation_chance == args['grow_leaf_mutation_chance']
-    assert prog.int_std == args['int_std']
-    assert prog.float_std == args['float_std']
+    assert ga.conf.n == args['n']
+    assert ga.conf.zero_program_chance == args['zero_program_chance']
+    assert ga.conf.mutation_children == args['mutation_children']
+    assert ga.conf.crossover_children == args['crossover_children']
+    assert ga.conf.simplify_chance == args['simplify_chance']
+
+    assert prog.conf.hoist_mutation_chance == args['hoist_mutation_chance']
+    assert prog.conf.grow_root_mutation_chance == args['grow_root_mutation_chance']
+    assert prog.conf.grow_leaf_mutation_chance == args['grow_leaf_mutation_chance']
+    assert prog.conf.complete_tree_as_new_subtree_chance == args['complete_tree_as_new_subtree_chance']
+    assert prog.conf.int_std == args['int_std']
+    assert prog.conf.float_std == args['float_std']
 
 
 def test_pandas_columns_as_arg_names():
@@ -115,7 +125,7 @@ def test_stopping_conditions():
         'b': [0, 1, 0, 1, 0]})
     y = X['a'] - X['b']
 
-    r = make_seeded_regressor(generations=3, n=1)
+    r = make_seeded_regressor(generations=3, n=2)
     r.fit(X, y)
     assert r.training_details['generations'] == 3
 

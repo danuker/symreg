@@ -1,3 +1,5 @@
+from orderedset import OrderedSet
+
 from symreg.nsgaii import fast_non_dominated_sort, crowding_distance_assignment, nsgaii_cull
 
 
@@ -50,14 +52,15 @@ def test_nsgaii_cull():
     for sort in ['2d', 'nd']:
         start = {'best1': (1, 2), 'best2': (2, 1), 'bestest': (1, 1), 'worst': (2, 2)}
         end = {'best1': (1, 2), 'best2': (2, 1), 'bestest': (1, 1)}
-        assert nsgaii_cull(start, 3, sort) == end
+        pareto = OrderedSet(['bestest'])
+        assert nsgaii_cull(start, 3, sort) == (end, pareto)
 
         start = {'best1': (1, 2), 'best2': (2, 1), 'not_on_shortlist': (1.5, 1.5)}
-        assert nsgaii_cull(start, 2, sort).keys() == {'best1', 'best2'}
+        assert nsgaii_cull(start, 2, sort)[0].keys() == {'best1', 'best2'}
 
         # Equidistant
         start = {'best1': (1, 2), 'best2': (2, 1), 'best_equidistant': (1.5, 1.5), 'best_too_close': (1.25, 1.75)}
-        assert nsgaii_cull(start, 3, sort) == {'best1': (1, 2), 'best2': (2, 1), 'best_equidistant': (1.5, 1.5)}
+        assert nsgaii_cull(start, 3, sort)[0] == {'best1': (1, 2), 'best2': (2, 1), 'best_equidistant': (1.5, 1.5)}
 
         # Discard along axes
         start = {
@@ -69,7 +72,7 @@ def test_nsgaii_cull():
             'q': (1, 0),
             'q_bad': (10000, 0),
         }
-        assert nsgaii_cull(start, 5, sort).keys() == {
+        assert nsgaii_cull(start, 5, sort)[0].keys() == {
             'p', 'mid', 'q',
             'p1_pareto_but_not_convex_hull',
             'p2_pareto_but_not_convex_hull',
@@ -85,7 +88,7 @@ def test_nsgaii_cull():
             'q': (1, 0),
             'q_bad': (10000, 0.00001),
         }
-        assert nsgaii_cull(start, 5, sort).keys() == {
+        assert nsgaii_cull(start, 5, sort)[0].keys() == {
             'p', 'mid', 'q',
             'p1_pareto_but_not_convex_hull',
             'p2_pareto_but_not_convex_hull',

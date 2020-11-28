@@ -1,8 +1,8 @@
 import math
 from collections import defaultdict
 import random
+from itertools import chain
 import numpy as np
-
 from .nsgaii import nsgaii_cull
 
 np.seterr(all='ignore')  # We know we will get numerical funny business
@@ -16,7 +16,8 @@ blocks = {
     'pow': (np.power, 2),
 
     'exp': (np.exp, 1),
-    'neg': (np.negative, 1)
+    'neg': (np.negative, 1),
+    'rec': (np.reciprocal, 1),
 
     # Arity 0: args ($0, $1...) and constants
 }
@@ -28,8 +29,10 @@ opnames = {v[0]: opname for opname, v in blocks.items()}
 def fitness(program, Xt, y):
     complexity = len(program.source)
     try:
-        diff = np.subtract(y, program.eval(Xt))
-        error = np.average(diff * diff)
+        y_est = program.eval(Xt)
+        diff = np.subtract(y, y_est)
+        error = abs(diff)
+        error = sum(error) / len(error)
         if error < 0 or math.isnan(error):
             return float('inf'), complexity
         return error, complexity
@@ -43,6 +46,10 @@ def set_choice(s):
 
 def is_elementary(obj):
     return isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, str)
+
+
+def is_constant(obj):
+    return isinstance(obj, int) or isinstance(obj, float)
 
 
 def _eval_block(token: str):
@@ -61,19 +68,17 @@ class Program:
             self,
             source,
             max_arity=0,
-            zero_program_chance=0.5,
-            grow_root_mutation_chance=.2,
-            grow_leaf_mutation_chance=.4,
-            int_std=4,
-            float_std=5,
             columns=(),
+            config=None,
     ):
+        if config:
+            self.conf = config
+        else:
+            # Get defaults from Regressor
+            from .regressor import Configuration
+            self.conf = Configuration()
+
         self._max_arity = max_arity
-        self.zero_program_chance = zero_program_chance
-        self.grow_root_mutation_chance = grow_root_mutation_chance
-        self.grow_leaf_mutation_chance = grow_leaf_mutation_chance
-        self.int_std = int_std
-        self.float_std = float_std
         self.columns = tuple(columns)
         self.source = source
 
@@ -86,7 +91,7 @@ class Program:
         source = self._to_tuple(source)
 
         self._source = source
-        self._p, remaining = self._parse_source()
+        self._p, remaining = self._from_source()
         if remaining:
             raise ValueError(f'Program contains more than one expression: {remaining}')
 
@@ -102,15 +107,11 @@ class Program:
         return Program(
             tuple(new_source),
             max_arity=self._max_arity,
-            zero_program_chance=self.zero_program_chance,
-            grow_root_mutation_chance=self.grow_root_mutation_chance,
-            grow_leaf_mutation_chance=self.grow_leaf_mutation_chance,
-            int_std=self.int_std,
-            float_std=self.float_std,
             columns=self.columns,
+            config=self.conf,
         )
 
-    def _parse_source(self, source=None) -> tuple:
+    def _from_source(self, source=None) -> tuple:
         """
         Program representation:
         (np.add, (np.divide, 3, 2), 4)
@@ -135,7 +136,7 @@ class Program:
         else:
             args = ()
             while len(args) < arity:
-                newarg, rest = self._parse_source(rest)
+                newarg, rest = self._from_source(rest)
                 args = args + (newarg,)
             return (first,) + args, rest
 
@@ -168,44 +169,21 @@ class Program:
         return func(*evaldargs)
 
     def mutate(self):
-        assert self.grow_leaf_mutation_chance + self.grow_root_mutation_chance < 1
+        chances = {
+            self.conf.hoist_mutation_chance: self.hoist_mutation,
+            self.conf.grow_leaf_mutation_chance: self.grow_leaf_mutation,
+            self.conf.grow_root_mutation_chance: self.grow_root_mutation
+        }
+        assert sum(chances) <= 1
+
         choice = random.random()
-        if choice < self.grow_leaf_mutation_chance:
-            return self.grow_leaf_mutation()
-        elif choice < self.grow_leaf_mutation_chance + self.grow_root_mutation_chance:
-            return self.grow_root_mutation()
-        else:
-            return self.point_mutation()
 
-    def grow_leaf_mutation(self):
-        """Replace a leaf with an op and two leaves"""
-        i = 0
-        while self._source[i] in blocks:
-            i = random.randrange(len(self._source))
-
-        new_op = set_choice(blocks)
-        needed_args = blocks[new_op][1]
-        new_args = [self._new_leaf('0')] * needed_args
-        if random.random() < 0.5:
-            new_args[random.randrange(len(new_args))] = self._source[i]
-
-        new_source = self._source[:i] \
-                     + (new_op,) \
-                     + tuple(new_args) \
-                     + self._source[i + 1:]
-
-        return self.from_source(new_source)
-
-    def grow_root_mutation(self):
-        """Make a new root, and make the old root an arg"""
-        new_op = set_choice(blocks)
-        needed_args = blocks[new_op][1]
-
-        new_args = (self._new_leaf('0'),) * needed_args
-        i = random.randrange(len(new_args))
-        new_source = (new_op,) + new_args[:i] + self._source + new_args[(i + 1):]
-
-        return self.from_source(new_source)
+        for c in chances:
+            if choice < c:
+                return chances[c]()
+            else:
+                choice -= c
+        return self.point_mutation()
 
     def point_mutation(self):
         """Replace a source op while preserving all arities"""
@@ -221,6 +199,75 @@ class Program:
 
         return self.from_source(new_source)
 
+    def grow_leaf_mutation(self):
+        """Replace a leaf with an op and two leaves"""
+        i = 0
+        while self._source[i] in blocks:
+            i = random.randrange(len(self._source))
+
+        new_op = set_choice(blocks)
+        needed_args = blocks[new_op][1]
+        new_args = [self._new_leaf('0')] * needed_args
+        if random.random() < 0.5:
+            new_args[random.randrange(len(new_args))] = self._source[i]
+
+        new_source = \
+            self._source[:i] \
+            + (new_op,) \
+            + tuple(new_args) \
+            + self._source[i + 1:]
+
+        return self.from_source(new_source)
+
+    def grow_root_mutation(self):
+        """Make a new root, and make the old root an arg"""
+        new_op = set_choice(blocks)
+        needed_args = blocks[new_op][1]
+
+        new_args = (self._new_leaf('0'),) * needed_args
+        i = random.randrange(len(new_args))
+        new_source = (new_op,) + new_args[:i] + self._source + new_args[(i + 1):]
+
+        return self.from_source(new_source)
+
+    def hoist_mutation(self):
+        """Return a random subtree"""
+        if len(self._source) < 2:
+            return self.mutate()
+
+        i = random.randrange(len(self._source) - 1) + 1
+        parsed, _ = self._subtree_starting_on_index(i)
+        return self.from_source(self._to_source(parsed))
+
+    def _subtree_starting_on_index(self, i):
+        return self._from_source(self._source[i:])
+
+    def crossover(self, other):
+        if len(self.source) < 2:
+            return self
+
+        if random.random() < self.conf.complete_tree_as_new_subtree_chance:
+            new_subtree = other
+        else:
+            new_subtree = other.hoist_mutation()
+
+        i = random.randrange(len(self._source) - 1) + 1
+        parsed, remaining = self._subtree_starting_on_index(i)
+        return self.from_source(
+            self.source[:i] + new_subtree.source + remaining
+        )
+
+    def crossover_with_one(self, many):
+        return self.crossover(random.choice(many))
+
+    @staticmethod
+    def _to_source(tree) -> tuple:
+        if is_elementary(tree):
+            return str(tree),
+        else:
+            funcname = opnames[tree[0]]
+            return (funcname,) + tuple(p for arg in tree[1:] for p in Program._to_source(arg))
+
     @staticmethod
     def _ops_with_same_arity(op):
         return tuple(
@@ -232,10 +279,10 @@ class Program:
         choices = []
 
         if not op.startswith('$'):
-            choices.append(str(float(op) + random.gauss(0, self.float_std)))
+            choices.append(str(float(op) + random.gauss(0, self.conf.float_std)))
         else:
-            choices.append(str(random.gauss(0, self.float_std)))
-        choices.append(str(float(int(random.gauss(0, self.int_std)))))
+            choices.append(str(random.gauss(0, self.conf.float_std)))
+        choices.append(str(float(int(random.gauss(0, self.conf.int_std)))))
 
         if self._max_arity:
             choices.append(f'${random.randrange(self._max_arity)}')
@@ -248,33 +295,39 @@ class Program:
             s = s.replace(f'${i}', f'${col}')
         return s
 
+    @staticmethod
+    def _simplify_tree(tree):
+        if is_elementary(tree):
+            return tree
+
+        op, args = tree[0], tree[1:]
+        args = tuple(Program._simplify_tree(arg) for arg in args)
+
+        if all(is_constant(arg) for arg in args):
+            return op(*args)
+
+        return tree
+
+    def simplify(self):
+        return self.from_source(self._to_source(self._simplify_tree(self._p)))
+
     def __eq__(self, other):
-        return self._source == other._source
+        return self.source == other.source
 
     def __hash__(self):
         return hash((self._source, self._max_arity))
 
 
 class GA:
-    def __init__(self, n,
-                 zero_program_chance,
-                 grow_leaf_mutation_chance,
-                 grow_root_mutation_chance,
-                 int_std,
-                 float_std,
-                 ):
-        self.n = n
-        self.zero_program_chance = zero_program_chance
-        self.grow_leaf_mutation_chance = grow_leaf_mutation_chance
-        self.grow_root_mutation_chance = grow_root_mutation_chance
-        self.int_std = int_std
-        self.float_std = float_std
+    def __init__(self, config):
+        self.conf = config
 
         self.columns = ()
         self.individuals = ()
         self.steps_taken = 0
         self._max_arity = None
         self.old_scores = dict()
+        self.front = ()
 
     def _from_df(self, X):
         """Transpose the X array into columns as args"""
@@ -304,30 +357,46 @@ class GA:
         p = Program(
             source='0',
             max_arity=self._max_arity,
-            grow_root_mutation_chance=self.grow_root_mutation_chance,
-            grow_leaf_mutation_chance=self.grow_leaf_mutation_chance,
-            int_std=self.int_std,
-            float_std=self.float_std,
             columns=self.columns,
+            config=self.conf
         )
 
         self.individuals = tuple(
-            p if random.random() < self.zero_program_chance else p.mutate()
-            for _ in range(self.n)
+            p if random.random() < self.conf.zero_program_chance else p.mutate()
+            for _ in range(self.conf.n)
         )
         self.old_scores = dict()
         self.steps_taken = 0
         self._step(params, y)
 
     def fit_partial(self, X, y):
-        Xt = (self._from_df(X))
+        Xt = self._from_df(X)
         self._step(Xt, y)
 
+    def _get_random(self, proportion):
+
+        target_size = int(proportion * len(self.individuals))
+        return (random.choice(self.individuals) for _ in range(target_size))
+
     def _step(self, Xt, y):
-        new_gen = (i.mutate() for i in self.individuals)
+        can_cross_over = self._get_random(self.conf.crossover_children)
+        crossed_over = (i.crossover_with_one(self.individuals) for i in can_cross_over)
+        can_mutate = self._get_random(self.conf.mutation_children)
+        mutated = (i.mutate() for i in can_mutate)
+
+        def perhaps_simplify(i: Program):
+            if random.random() < self.conf.simplify_chance:
+                return i.simplify()
+            else:
+                return i
+
+        new_gen = map(perhaps_simplify, chain(crossed_over, mutated))
         new_scores = {i: fitness(i, Xt, y) for i in new_gen if i not in self.old_scores}
         self.old_scores.update(new_scores)
-        final = nsgaii_cull(self.old_scores, self.n)
+
+        final, front = nsgaii_cull(self.old_scores, self.conf.n)
+
         self.steps_taken += 1
+        self.front = {ind: self.old_scores[ind] for ind in front}
         self.old_scores = final
         self.individuals = tuple(final)

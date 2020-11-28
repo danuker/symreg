@@ -1,4 +1,7 @@
+import random
+
 from symreg.ga import Program, fitness
+from symreg.regressor import Configuration
 import numpy as np
 import pandas as pd
 from pytest import raises
@@ -26,7 +29,7 @@ def test_program():
     assert {Program('123'), Program('123')} == {Program('123')}
     assert (Program('add $0 1', 1).eval(np.array([[0, 1]])) == [1, 2]).all()
     assert (Program('add $0 $1', 2).eval(np.array([[0, 2], [1, 3]])) == np.array([1, 5])).all()
-    assert (Program('add $0 $1', 2).eval([[0, 1, 4],  [2, 3, 5]])
+    assert (Program('add $0 $1', 2).eval([[0, 1, 4], [2, 3, 5]])
             == [2, 4, 9]).all()
     assert (Program('add $0 1', 1).eval([[0, 1]]) == [1, 2]).all()
 
@@ -60,18 +63,23 @@ def test_program():
     assert Program('$a', 1, columns=['a']).eval([[1, 2, 3]]) == [1, 2, 3]
 
 
-# TODO: implement
-# def test_simplify():
-#     def assert_simplified(source, target):
-#         assert str(Program(source, 3).simplify()) == f"Program('{target}')"
-#
-#     assert_simplified('add 1 2', '3')
-#     assert_simplified('exp 0.0', '1')
-#     assert_simplified('neg neg 1', '1')
-#     assert_simplified('add neg $1 $2', 'sub 2 1')
-#     assert_simplified('add 1 neg 2', 'sub 1 2')
-#     assert_simplified('add 0.0 sub $a $b', 'sub $a $b')
-#     assert_simplified('add sub $a $b 0.0', 'sub $a $b')
+def test_simplify():
+    def assert_simplified(source, target):
+        assert str(Program(source, 3).simplify()) == f"Program('{target}', 3)"
+
+    assert_simplified('3.0', '3.0')
+    assert_simplified('add 1 2', '3.0')
+    assert_simplified('exp 0.0', '1.0')
+    assert_simplified('neg neg 1', '1.0')
+    assert_simplified('neg neg $1', '$1')
+    # assert_simplified('add $1 $1', 'mul $1 2.0')
+    # assert_simplified('mul $1 $1', 'pow $1 2.0')
+    # assert_simplified('add neg $1 $2', 'sub $2 $1')
+    # assert_simplified('add 1 neg 2', 'sub 1 2')
+    # assert_simplified('add 0.0 sub $a $b', 'sub $a $b')
+    # assert_simplified('add sub $a $b 0.0', 'sub $a $b')
+    # assert_simplified('neg sub 4 mul .7 add 4 $a', 'sub mul 0.7 $a 1.2')
+    # assert_simplified(''mul 0.81 mul 0.63 add $0 $1', 'mul 0.5103 add $0 $1')
 
 
 def test_point_mutate():
@@ -86,6 +94,27 @@ def test_point_mutate():
         # Manual inspection; check that anything can mutate (even inside)
         # To do this, change the != to ==
         assert Program('add sub 2 3 4').point_mutation() != Program('add sub 2 3 4')
+
+
+def test_hoist_mutate():
+    random.seed(0)
+    assert Program('exp 1').hoist_mutation() == Program('1.0')
+    assert Program('add 1 1').hoist_mutation() == Program('1.0')
+    assert Program('add add 1 1 1').hoist_mutation() == Program('add 1.0 1.0')
+    assert Program('add add add 1 1 1 1').hoist_mutation() == Program('1.0')
+
+
+def test_crossover():
+    random.seed(0)
+    c = Configuration(complete_tree_as_new_subtree_chance=1)
+    a = Program('exp 1', config=c)
+    b = Program('add 2 3')
+    assert a.crossover(b) == Program('exp add 2 3')
+
+    c = Configuration(complete_tree_as_new_subtree_chance=0)
+    a = Program('exp 1', config=c)
+    b = Program('add 2 3')
+    assert a.crossover(b) == Program('exp 3.0')
 
 
 def test_fitness():

@@ -13,7 +13,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/danuker/symreg",
     packages=setuptools.find_packages(exclude=('tests', 'tests.*')),
-    install_requires=['numpy'],
+    install_requires=['numpy', 'orderedset'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
