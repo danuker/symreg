@@ -16,6 +16,7 @@ blocks = {
     'pow': (np.power, 2),
 
     'exp': (np.exp, 1),
+    'log': (np.log, 1),
     'neg': (np.negative, 1),
     'rec': (np.reciprocal, 1),
 
@@ -24,6 +25,7 @@ blocks = {
 
 arities = defaultdict(lambda: 0, {name: v[1] for name, v in blocks.items()})
 opnames = {v[0]: opname for opname, v in blocks.items()}
+ops_from_name = {opname: v[0] for opname, v in blocks.items()}
 
 
 def fitness(program, Xt, y):
@@ -45,11 +47,18 @@ def set_choice(s):
 
 
 def is_elementary(obj):
-    return isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, str)
+    return is_constant(obj) or isinstance(obj, str)
 
 
 def is_constant(obj):
-    return isinstance(obj, int) or isinstance(obj, float)
+    return isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, np.int64)
+
+
+def _eq_array(a, b):
+    try:
+        return bool(a == b)
+    except ValueError:
+        return a is b
 
 
 def _eval_block(token: str):
@@ -301,10 +310,73 @@ class Program:
             return tree
 
         op, args = tree[0], tree[1:]
+        opname = opnames[op]
         args = tuple(Program._simplify_tree(arg) for arg in args)
 
         if all(is_constant(arg) for arg in args):
             return op(*args)
+
+        if opname in ['neg', 'rec']:
+            if not is_elementary(args[0]):
+                if op == args[0][0]:
+                    return args[0][1]
+
+        if opname == 'neg':
+            if not is_elementary(args[0]):
+                if opnames[args[0][0]] == 'sub':
+                    return ops_from_name['sub'], args[0][2], args[0][1]
+
+        if opname == 'rec':
+            if not is_elementary(args[0]):
+                if opnames[args[0][0]] == 'div':
+                    return ops_from_name['div'], args[0][2], args[0][1]
+
+        if opname == 'add':
+            if _eq_array(args[0], args[1]):
+                return ops_from_name['mul'], args[0], 2.0
+
+            if _eq_array(args[0], 0.0):
+                return args[1]
+
+            if _eq_array(args[1], 0.0):
+                return args[0]
+
+            if not is_elementary(args[1]):
+                if opnames[args[1][0]] == 'neg':
+                    return ops_from_name['sub'], args[0], args[1][1]
+
+            if not is_elementary(args[0]):
+                if opnames[args[0][0]] == 'neg':
+                    return ops_from_name['sub'], args[1], args[0][1]
+
+        if opname == 'mul':
+            if args[0] == 0 or args[1] == 0:
+                return 0
+
+            if _eq_array(args[0], args[1]):
+                return blocks['pow'][0], args[0], 2
+
+            if args[0] == 1:
+                return args[1]
+
+            if args[1] == 1:
+                return args[0]
+
+        if opname == 'div':
+            if args[0] == 0:
+                return 0
+            if args[1] == 1:
+                return args[0]
+
+        if opname == 'pow':
+            if args[0] == 0:
+                return 0
+            if args[1] == 0:
+                return 1
+            if args[0] == 1:
+                return 1
+            if args[1] == 1:
+                return args[0]
 
         return tree
 
