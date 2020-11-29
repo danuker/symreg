@@ -33,8 +33,7 @@ def fitness(program, Xt, y):
     try:
         y_est = program.eval(Xt)
         diff = np.subtract(y, y_est)
-        error = abs(diff)
-        error = sum(error) / len(error)
+        error = np.sqrt(np.average(np.square(diff)))
         if error < 0 or math.isnan(error):
             return float('inf'), complexity
         return error, complexity
@@ -47,18 +46,20 @@ def set_choice(s):
 
 
 def is_elementary(obj):
-    return is_constant(obj) or isinstance(obj, str)
+    return not isinstance(obj, tuple)
 
 
 def is_constant(obj):
-    return isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, np.int64)
+    return isinstance(obj, (int, float, np.int64))
 
 
 def _eq_array(a, b):
+    res = a == b
     try:
-        return bool(a == b)
+        return bool(res)
     except ValueError:
-        return a is b
+        # Darn numpy floats cast even tuples to arrays
+        return all(res)
 
 
 def _eval_block(token: str):
@@ -68,6 +69,13 @@ def _eval_block(token: str):
         if token.startswith('$'):
             return token, 0
         return blocks[token]
+
+
+def _ops_with_same_arity(op):
+    return tuple(
+        name for name in blocks
+        if arities[op] == arities[name] and name != op
+    )
 
 
 class Program:
@@ -142,12 +150,12 @@ class Program:
                 except ValueError:
                     pass
             return first, rest
-        else:
-            args = ()
-            while len(args) < arity:
-                newarg, rest = self._from_source(rest)
-                args = args + (newarg,)
-            return (first,) + args, rest
+
+        args = ()
+        while len(args) < arity:
+            newarg, rest = self._from_source(rest)
+            args = args + (newarg,)
+        return (first,) + args, rest
 
     def eval(self, args=()):
         """
@@ -190,15 +198,14 @@ class Program:
         for c in chances:
             if choice < c:
                 return chances[c]()
-            else:
-                choice -= c
+            choice -= c
         return self.point_mutation()
 
     def point_mutation(self):
         """Replace a source op while preserving all arities"""
         i = random.randrange(len(self._source))  # Index of source block to mutate
         op = self._source[i]
-        candidates = self._ops_with_same_arity(op)
+        candidates = _ops_with_same_arity(op)
         if not candidates:
             # We must choose a constant or a parameter
             chosen = self._new_leaf(op)
@@ -269,20 +276,12 @@ class Program:
     def crossover_with_one(self, many):
         return self.crossover(random.choice(many))
 
-    @staticmethod
-    def _to_source(tree) -> tuple:
+    def _to_source(self, tree) -> tuple:
         if is_elementary(tree):
             return str(tree),
         else:
             funcname = opnames[tree[0]]
-            return (funcname,) + tuple(p for arg in tree[1:] for p in Program._to_source(arg))
-
-    @staticmethod
-    def _ops_with_same_arity(op):
-        return tuple(
-            name for name in blocks
-            if arities[op] == arities[name] and name != op
-        )
+            return (funcname,) + tuple(p for arg in tree[1:] for p in self._to_source(arg))
 
     def _new_leaf(self, op):
         choices = []
@@ -304,43 +303,18 @@ class Program:
             s = s.replace(f'${i}', f'${col}')
         return s
 
-    @staticmethod
-    def _simplify_tree(tree):
+    def _simplify_tree(self, tree):
         if is_elementary(tree):
             return tree
 
         op, args = tree[0], tree[1:]
         opname = opnames[op]
-        args = tuple(Program._simplify_tree(arg) for arg in args)
+        args = tuple(self._simplify_tree(arg) for arg in args)
 
         if all(is_constant(arg) for arg in args):
             return op(*args)
 
-        if opname in ['neg', 'rec']:
-            if not is_elementary(args[0]):
-                if op == args[0][0]:
-                    return args[0][1]
-
-        if opname == 'neg':
-            if not is_elementary(args[0]):
-                if opnames[args[0][0]] == 'sub':
-                    return ops_from_name['sub'], args[0][2], args[0][1]
-
-        if opname == 'rec':
-            if not is_elementary(args[0]):
-                if opnames[args[0][0]] == 'div':
-                    return ops_from_name['div'], args[0][2], args[0][1]
-
         if opname == 'add':
-            if _eq_array(args[0], args[1]):
-                return ops_from_name['mul'], args[0], 2.0
-
-            if _eq_array(args[0], 0.0):
-                return args[1]
-
-            if _eq_array(args[1], 0.0):
-                return args[0]
-
             if not is_elementary(args[1]):
                 if opnames[args[1][0]] == 'neg':
                     return ops_from_name['sub'], args[0], args[1][1]
@@ -349,18 +323,35 @@ class Program:
                 if opnames[args[0][0]] == 'neg':
                     return ops_from_name['sub'], args[1], args[0][1]
 
+            if args[0] == 0.0:
+                return args[1]
+
+            if args[1] == 0.0:
+                return args[0]
+
+            if _eq_array(args[0], args[1]):
+                return ops_from_name['mul'], args[0], 2.0
+
+        if opname == 'sub':
+            if args[1] == 0:
+                return args[0]
+            if args[0] == 0:
+                return ops_from_name['neg'], args[1]
+            if _eq_array(args[0], args[1]):
+                return 0
+
         if opname == 'mul':
             if args[0] == 0 or args[1] == 0:
                 return 0
-
-            if _eq_array(args[0], args[1]):
-                return blocks['pow'][0], args[0], 2
 
             if args[0] == 1:
                 return args[1]
 
             if args[1] == 1:
                 return args[0]
+
+            if _eq_array(args[0], args[1]):
+                return blocks['pow'][0], args[0], 2
 
         if opname == 'div':
             if args[0] == 0:
@@ -369,19 +360,36 @@ class Program:
                 return args[0]
 
         if opname == 'pow':
-            if args[0] == 0:
-                return 0
             if args[1] == 0:
                 return 1
             if args[0] == 1:
                 return 1
+            if args[0] == 0:
+                return 0
             if args[1] == 1:
                 return args[0]
+
+        if opname == 'neg':
+            if not is_elementary(args[0]):
+                if opnames[args[0][0]] == 'sub':
+                    return ops_from_name['sub'], args[0][2], args[0][1]
+                if op == args[0][0]:
+                    return args[0][1]
+
+        if opname == 'rec':
+            if not is_elementary(args[0]):
+                if opnames[args[0][0]] == 'div':
+                    return ops_from_name['div'], args[0][2], args[0][1]
+                if op == args[0][0]:
+                    return args[0][1]
 
         return tree
 
     def simplify(self):
-        return self.from_source(self._to_source(self._simplify_tree(self._p)))
+        simplified = self._simplify_tree(self._p)
+        source = self._to_source(simplified)
+        new_program = self.from_source(source)
+        return new_program
 
     def __eq__(self, other):
         return self.source == other.source
@@ -414,9 +422,9 @@ class GA:
             )
         return Xa.transpose()
 
-    def predict(self, X):
+    def predict(self, X, max_complexity=float('inf')):
         """Predict using the individual with the least training error"""
-        errors = ((v[0], i) for i, v in self.old_scores.items())
+        errors = ((v[0], i) for i, v in self.old_scores.items() if v[1] <= max_complexity)
         _, best = min(errors, key=lambda e: e[0])
         return best.eval(self._from_df(X))
 
@@ -424,6 +432,7 @@ class GA:
         if hasattr(X, 'columns'):
             self.columns = X.columns
         params = self._from_df(X)
+        y = np.array(y)
         self._max_arity = len(params)
 
         p = Program(
@@ -443,12 +452,13 @@ class GA:
 
     def fit_partial(self, X, y):
         Xt = self._from_df(X)
+        y = np.array(y)
         self._step(Xt, y)
 
     def _get_random(self, proportion):
-
         target_size = int(proportion * len(self.individuals))
-        return (random.choice(self.individuals) for _ in range(target_size))
+        target = self.individuals * int(proportion+1)
+        return (random.choice(target) for _ in range(target_size))
 
     def _step(self, Xt, y):
         can_cross_over = self._get_random(self.conf.crossover_children)

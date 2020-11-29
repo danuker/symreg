@@ -14,7 +14,7 @@ class Configuration:
     complete_tree_as_new_subtree_chance: float = .5
     mutation_children: float = .7
     crossover_children: float = .7
-    simplify_chance: float = .8
+    simplify_chance: float = .1
     int_std: float = 3
     float_std: float = 4
 
@@ -34,7 +34,7 @@ class Regressor:
             complete_tree_as_new_subtree_chance=.5,
             mutation_children=.7,
             crossover_children=.7,
-            simplify_chance=.8,
+            simplify_chance=.1,
             int_std=3,
             float_std=4,
     ):
@@ -71,7 +71,7 @@ class Regressor:
 
         while self.can_continue(taken):
             taken = time() - start
-            if self.verbose and time() - last_printed > 10:
+            if self.verbose and time() - last_printed > 1:
                 last_printed = time()
                 print(f'Time left  : {(self.duration - taken):.2f}s')
                 print(f'Best so far: {min(s for s in self._ga.old_scores.values())} (error, complexity)')
@@ -99,9 +99,8 @@ class Regressor:
                self._ga.steps_taken < self.steps_to_take and \
                self._stagnation < self.max_stagnation_generations
 
-    def predict(self, X):
-        y_pred = self._ga.predict(X)
-        return y_pred
+    def predict(self, X, max_complexity=float('inf')):
+        return self._ga.predict(X, max_complexity)
 
     def results(self):
         scores = self._ga.front

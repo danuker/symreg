@@ -178,4 +178,6 @@ def nsgaii_cull(start_pop, n_out, sort=None):
             break
 
     flat = {i: start_pop[i] for i in end_pop[:n_out]}
+    if 1 not in pareto_front:
+        raise ValueError(f'Invalid pareto front for {start_pop}')
     return flat, pareto_front[1]
