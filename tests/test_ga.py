@@ -72,35 +72,12 @@ def test_simplify():
     assert_simplified('add 0 $1', '$1')
     assert_simplified('add $1 0', '$1')
     assert_simplified('add 0.0 0.0', '0.0')
-    assert_simplified('add $1 $1', 'mul $1 2.0')
     assert_simplified('add $1 neg $2', 'sub $1 $2')
     assert_simplified('add neg $1 $2', 'sub $2 $1')
     assert_simplified('sub $a 0.0', '$a')
     assert_simplified('sub 0.0 $a', 'neg $a')
-    assert_simplified('sub $a $a', '0')
-    assert_simplified('mul $a 0', '0')
-    assert_simplified('mul 0 $a', '0')
-    assert_simplified('mul $a 1', '$a')
-    assert_simplified('mul 1 $a', '$a')
-    assert_simplified('mul $1 $1', 'pow $1 2')
-    assert_simplified('div 0 $a', '0')
-    assert_simplified('div $a 1', '$a')
-    assert_simplified('pow $a 0', '1')
-    assert_simplified('pow $a 1', '$a')
-    assert_simplified('pow 0 $a', '0')
-    assert_simplified('pow 1 $a', '1')
-    assert_simplified('neg neg $1', '$1')
-    assert_simplified('rec rec $1', '$1')
-    assert_simplified('mul 0.0 add $a $b', '0')
     assert_simplified('add 0.0 sub $a $b', 'sub $a $b')
     assert_simplified('add sub $a $b 0.0', 'sub $a $b')
-    assert_simplified('neg sub $a $b', 'sub $b $a')
-    assert_simplified('rec div $a $b', 'div $b $a')
-    assert_simplified('add div 0 $0 mul $0 1.0', '$0')
-    assert_simplified('add div 0 $0 mul $0 0', '0')
-    # assert_simplified('sub mul .7 add 4 $a 4', 'sub mul 0.7 $a 1.2')
-    # assert_simplified('neg sub 4 mul .7 add 4 $a', 'sub mul 0.7 $a 1.2')
-    # assert_simplified(''mul 0.81 mul 0.63 add $0 $1', 'mul 0.5103 add $0 $1')
 
 
 def test_point_mutate():
@@ -123,6 +100,14 @@ def test_hoist_mutate():
     assert Program('add 1 1').hoist_mutation() == Program('1.0')
     assert Program('add add 1 1 1').hoist_mutation() == Program('add 1.0 1.0')
     assert Program('add add add 1 1 1 1').hoist_mutation() == Program('1.0')
+
+
+def test_prune_mutate():
+    random.seed(0)
+    pruned = Program('exp neg 1').prune_mutation()
+
+    assert len(pruned.source) == 2
+    assert pruned.source[0] == 'exp'
 
 
 def test_crossover():

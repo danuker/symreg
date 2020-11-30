@@ -8,13 +8,14 @@ from symreg.ga import GA
 class Configuration:
     n: int = 50
     zero_program_chance: float = 0.5
-    hoist_mutation_chance: float = .13
-    grow_root_mutation_chance: float = .13
-    grow_leaf_mutation_chance: float = .3
+    hoist_mutation_chance: float = .24
+    prune_mutation_chance: float = .16
+    grow_root_mutation_chance: float = .24
+    grow_leaf_mutation_chance: float = .16
     complete_tree_as_new_subtree_chance: float = .5
     mutation_children: float = .7
     crossover_children: float = .7
-    simplify_chance: float = .1
+    simplify_chance: float = .5
     int_std: float = 3
     float_std: float = 4
 
@@ -28,13 +29,14 @@ class Regressor:
             stagnation_limit=float('inf'),
             verbose=False,
             zero_program_chance=0.5,
-            hoist_mutation_chance=.13,
-            grow_root_mutation_chance=.13,
-            grow_leaf_mutation_chance=.3,
+            hoist_mutation_chance=.24,
+            prune_mutation_chance=.16,
+            grow_root_mutation_chance=.24,
+            grow_leaf_mutation_chance=.16,
             complete_tree_as_new_subtree_chance=.5,
             mutation_children=.7,
             crossover_children=.7,
-            simplify_chance=.1,
+            simplify_chance=.5,
             int_std=3,
             float_std=4,
     ):
@@ -42,6 +44,7 @@ class Regressor:
             n=n,
             zero_program_chance=zero_program_chance,
             hoist_mutation_chance=hoist_mutation_chance,
+            prune_mutation_chance=prune_mutation_chance,
             grow_root_mutation_chance=grow_root_mutation_chance,
             grow_leaf_mutation_chance=grow_leaf_mutation_chance,
             complete_tree_as_new_subtree_chance=complete_tree_as_new_subtree_chance,

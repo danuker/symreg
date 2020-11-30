@@ -50,7 +50,7 @@ def is_elementary(obj):
 
 
 def is_constant(obj):
-    return isinstance(obj, (int, float, np.int64))
+    return not isinstance(obj, (tuple, str))
 
 
 def _eq_array(a, b):
@@ -98,6 +98,11 @@ class Program:
         self._max_arity = max_arity
         self.columns = tuple(columns)
         self.source = source
+
+        self.optimizers = {
+            'add': self.optimize_add,
+            'sub': self.optimize_sub,
+        }
 
     @property
     def source(self):
@@ -189,7 +194,8 @@ class Program:
         chances = {
             self.conf.hoist_mutation_chance: self.hoist_mutation,
             self.conf.grow_leaf_mutation_chance: self.grow_leaf_mutation,
-            self.conf.grow_root_mutation_chance: self.grow_root_mutation
+            self.conf.grow_root_mutation_chance: self.grow_root_mutation,
+            self.conf.prune_mutation_chance: self.prune_mutation,
         }
         assert sum(chances) <= 1
 
@@ -255,6 +261,9 @@ class Program:
         parsed, _ = self._subtree_starting_on_index(i)
         return self.from_source(self._to_source(parsed))
 
+    def prune_mutation(self):
+        return self.crossover(self.from_source('0').point_mutation())
+
     def _subtree_starting_on_index(self, i):
         return self._from_source(self._source[i:])
 
@@ -303,6 +312,29 @@ class Program:
             s = s.replace(f'${i}', f'${col}')
         return s
 
+    @staticmethod
+    def optimize_add(args):
+        if not is_elementary(args[1]):
+            if opnames[args[1][0]] == 'neg':
+                return ops_from_name['sub'], args[0], args[1][1]
+
+        if not is_elementary(args[0]):
+            if opnames[args[0][0]] == 'neg':
+                return ops_from_name['sub'], args[1], args[0][1]
+
+        if args[0] == 0.0:
+            return args[1]
+
+        if args[1] == 0.0:
+            return args[0]
+
+    @staticmethod
+    def optimize_sub(args):
+        if args[1] == 0:
+            return args[0]
+        if args[0] == 0:
+            return ops_from_name['neg'], args[1]
+
     def _simplify_tree(self, tree):
         if is_elementary(tree):
             return tree
@@ -314,75 +346,11 @@ class Program:
         if all(is_constant(arg) for arg in args):
             return op(*args)
 
-        if opname == 'add':
-            if not is_elementary(args[1]):
-                if opnames[args[1][0]] == 'neg':
-                    return ops_from_name['sub'], args[0], args[1][1]
-
-            if not is_elementary(args[0]):
-                if opnames[args[0][0]] == 'neg':
-                    return ops_from_name['sub'], args[1], args[0][1]
-
-            if args[0] == 0.0:
-                return args[1]
-
-            if args[1] == 0.0:
-                return args[0]
-
-            if _eq_array(args[0], args[1]):
-                return ops_from_name['mul'], args[0], 2.0
-
-        if opname == 'sub':
-            if args[1] == 0:
-                return args[0]
-            if args[0] == 0:
-                return ops_from_name['neg'], args[1]
-            if _eq_array(args[0], args[1]):
-                return 0
-
-        if opname == 'mul':
-            if args[0] == 0 or args[1] == 0:
-                return 0
-
-            if args[0] == 1:
-                return args[1]
-
-            if args[1] == 1:
-                return args[0]
-
-            if _eq_array(args[0], args[1]):
-                return blocks['pow'][0], args[0], 2
-
-        if opname == 'div':
-            if args[0] == 0:
-                return 0
-            if args[1] == 1:
-                return args[0]
-
-        if opname == 'pow':
-            if args[1] == 0:
-                return 1
-            if args[0] == 1:
-                return 1
-            if args[0] == 0:
-                return 0
-            if args[1] == 1:
-                return args[0]
-
-        if opname == 'neg':
-            if not is_elementary(args[0]):
-                if opnames[args[0][0]] == 'sub':
-                    return ops_from_name['sub'], args[0][2], args[0][1]
-                if op == args[0][0]:
-                    return args[0][1]
-
-        if opname == 'rec':
-            if not is_elementary(args[0]):
-                if opnames[args[0][0]] == 'div':
-                    return ops_from_name['div'], args[0][2], args[0][1]
-                if op == args[0][0]:
-                    return args[0][1]
-
+        opt_fun = self.optimizers.get(opname)
+        if opt_fun is not None:
+            opt_tree = opt_fun(args)
+            if opt_tree is not None:
+                return opt_tree
         return tree
 
     def simplify(self):
