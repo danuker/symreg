@@ -13,12 +13,12 @@ blocks = {
     'sub': (np.subtract, 2),
     'mul': (np.multiply, 2),
     'div': (np.divide, 2),
-    'pow': (np.power, 2),
-
-    'exp': (np.exp, 1),
-    'log': (np.log, 1),
-    'neg': (np.negative, 1),
-    'rec': (np.reciprocal, 1),
+    # 'pow': (np.power, 2),
+    #
+    # 'exp': (np.exp, 1),
+    # 'log': (np.log, 1),
+    # 'neg': (np.negative, 1),
+    # 'rec': (np.reciprocal, 1),
 
     # Arity 0: args ($0, $1...) and constants
 }
@@ -33,7 +33,8 @@ def fitness(program, Xt, y):
     try:
         y_est = program.eval(Xt)
         diff = np.subtract(y, y_est)
-        error = np.sqrt(np.average(np.square(diff)))
+        # error = np.sqrt(np.average(np.square(diff)))
+        error = np.average(np.abs(diff))
         if error < 0 or math.isnan(error):
             return float('inf'), complexity
         return error, complexity
@@ -332,8 +333,8 @@ class Program:
     def optimize_sub(args):
         if args[1] == 0:
             return args[0]
-        if args[0] == 0:
-            return ops_from_name['neg'], args[1]
+        # if args[0] == 0:
+        #     return ops_from_name['neg'], args[1]
 
     def _simplify_tree(self, tree):
         if is_elementary(tree):
