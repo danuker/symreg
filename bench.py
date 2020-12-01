@@ -10,7 +10,6 @@ from sklearn.linear_model import LinearRegression
 
 from symreg import Regressor
 
-
 from sklearn.datasets import load_diabetes
 
 
@@ -23,31 +22,33 @@ def main():
     y = pd.Series(bunch['target'])
     y -= y.mean()
     y /= y.std()
-    times = np.logspace(-3, 0, 20) * 19
+    times = np.logspace(-3, 0, 100) * 19
 
-    regs = ['gplearn', 'linreg', 'symreg']
-    # regs = ['symreg']
+    regs = ['linreg', 'gplearn', 'gplearn50', 'symreg', 'symreg1000']
+    # regs = ['symreg1000']
 
     for regname in regs:
         print()
         print(regname)
         for i, t in enumerate(times):
-            regmap = {
-                'symreg': Regressor(duration=t),
-                'gplearn': SymbolicRegressor(generations=int(t)+1),
-                'linreg': LinearRegression()
-            }
 
+            regmap = {
+                'linreg': LinearRegression(),
+                'gplearn50': SymbolicRegressor(generations=int(20*t) + 1, population_size=50),
+                'gplearn': SymbolicRegressor(generations=int(t)+1),
+                'symreg': Regressor(duration=t),
+                'symreg1000': Regressor(duration=t, n=1000),
+            }
             random.seed(i)
-            r =regmap[regname]
+            r = regmap[regname]
             start = time()
             r.fit(X, y)
-            taken = time()-start
+            taken = time() - start
             yhat = r.predict(X)
-            print(f'{taken}\t{(abs(yhat-y)).mean()}')
+            print(f'{taken}\t{(abs(yhat - y)).mean()}')
 
         if regname == 'symreg':
-            print('\n'.join(str(res) for res in r.results()))
+            print('\n'.join(str(res) for res in r.results()[:20]))
             print("Features:")
             print("age, age in years")
             print("sex")
@@ -61,7 +62,9 @@ def main():
             print("s6 glu, blood sugar level")
             print("Target: Column 11 is a quantitative measure of disease progression one year after baseline")
             # Seems like this program is quite good:
-            # mul 0.4648468601443117 add $bmi $s5
-            # or BMI and lamotrigine being equal-importance and predicting diabetes on increase
+            # div add $s5 $bmi 2.194520715063185
+            # or BMI and lamotrigine being equal-importance (after normalization),
+            # and higher values indicate worse diabetes
+
 
 main()
