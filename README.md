@@ -2,7 +2,7 @@ SymReg is a Symbolic Regression library aimed to be easy to use and fast.
 
 You can use it to find expressions trying to explain a given output from given inputs. The expressions can use arbitrary building blocks, not just weighted sums as in linear models.
 
-It uses a modified [NSGA-II](https://ieeexplore.ieee.org/document/996017) algorithm, and applies NumPy functions for vectorized evaluation of input.
+It works with a modified [NSGA-II](https://ieeexplore.ieee.org/document/996017) algorithm, and applies NumPy functions for vectorized evaluation of input.
 
 SymReg is available on PyPI: you can install it using `pip install symreg`.
 
@@ -39,17 +39,6 @@ r.predict([[4, 6], [1, 2]])
 
 You can see more examples of usage in the [Jupyter Notebook file](Metaopt.ipynb).
 
-
-## Performance
-
-![](sklearn-diabetes.svg)
-
-SymReg 0.0.2 can reach 60 MAE error on the `sklearn` diabetes dataset in about 0.1 seconds, while GPLearn 0.4.1 takes about 18 seconds. That is a 180-fold improvement.
-
-Still, this is a linear regression problem. We both pale in comparison with a dedicated linear regression algorithm: `sklearn.linear_model.LinearRegression`, who is yet another 100-fold faster than SymReg.
-
-Benchmarking was done on a single core of an Intel(R) Core(TM) i7-4710HQ CPU on power saver, with TurboBoost off. Only addition, subtraction, multiplication, and division were allowed.
-
 ## Inspiration
 
 The following projects inspired me:
@@ -76,13 +65,42 @@ As with many other regression algorithms, I recommend that the input is scaled b
 
 Still, I personally prefer to avoid changing the sign of data - it makes interpreting the resulting mathematical functions in one's mind more difficult.
 
+## Performance
+
+![](diabetes.svg)
+
+|Goal       |GPLearn 0.4.1|SymReg 0.0.3|Speedup|
+|-----------|-------------|------------|-------|
+|MAE < 0.75 | 0.039 s     | 0.027 s    |1.44   |
+|MAE < 0.7  | 0.073 s     | 0.044 s    |1.65   |
+|MAE < 0.69 | 0.073 s     | 0.044 s    |1.65   |
+|MAE < 0.68 | 0.073 s     | 0.044 s    |1.65   |
+|MAE < 0.67 | 0.808 s     | 0.044 s    |200.1  |
+|MAE < 0.66 | 0.848 s     | 0.079 s    |10.73  |
+|MAE < 0.65 | 0.848 s     | 0.079 s    |10.73  |
+|MAE < 0.6  | 0.848 s     | 0.289 s    |2.93   |
+|MAE < 0.595| 12.64 s     | 0.377 s    |33.52  |
+|MAE < 0.59 | 13.38 s     | 0.377 s    |35.49  |
+
+In the table, we found the shortest time achieving certain mean absolute errors, and shows SymReg's speedup ratio (greater is better). Each model was run 200 times in total. As you can see, SymReg is a lot faster in many cases. 
+
+Due to its sensitivity to the population size, we trained `gplearn` with two population sizes: its default of 1000, and SymReg's default of 50. It seems the evolution progresses very slowly after the first generation. We also tried SymReg with a population of 1000, but it seems to be universally worse compared to the default of 50.
+
+As `gplearn` does not use Pareto-optimality, its solutions are evaluated in just one dimension instead of two, and are therefore "choppier". Given this choppiness, I recommend use of meta-optimization with it. SymReg seems to behave better with its default parameters, even on a different dataset than it was tuned on.
+
+Still, this is mostly a linear regression problem. Both GP models pale in comparison with a dedicated linear regression algorithm: `sklearn.linear_model.LinearRegression`. SymReg was ~1600 times slower (4.765 seconds) than the slowest run of LinearRegression. This means Genetic Programming should only be used where the flexibility is needed.
+
+Do you have or know of a highly non-linear dataset? Please [send it to me](mailto:danuthaiduc@gmail.com) so I can further benchmark.
+
+Benchmarking was done on the `sklearn` diabetes dataset. To prevent thermal variance, I used a single core of an Intel(R) Core(TM) i7-4710HQ CPU on power saver, with TurboBoost off. Only addition, subtraction, multiplication, and division were allowed. See the `benchmark_vs_gplearn` branch for the specific code.
+
 ## Parameters
 
-I tuned metaparameters according to held-out test error on the Boston dataset (see [the notebook](Metaopt.ipynb) and the bottom of [metaopt.ods](metaopt.ods)).
+I tuned metaparameters according to held-out test error on the Boston dataset (see [the Metaopt notebook](Metaopt.ipynb) and the bottom of [metaopt.ods](metaopt.ods)).
  
  Other analyzed parameters don't give out such a clear signal. The number of individuals in a generation, `n`, is around 65 in both the top 30 individuals, and the worst quartile. The rest seem not to have a clear influence within the tested range. Perhaps this would change if I tested in a different range.
 
-As always, we must take precautions against [overfitting](https://en.wikipedia.org/wiki/Overfitting). Always use a validation set and a test set, especially with such flexible and complex models as Genetic Programming.
+As always, we must take precautions against [overfitting](https://en.wikipedia.org/wiki/Overfitting). Always use a validation set and a test set, especially with such flexible and complex models like Genetic Programming.
 
 While constraining oneself to use simpler expressions can have some [regularization](https://en.wikipedia.org/wiki/Regularization_(mathematics)) effect, **never look at the test set until the end** (and you are sure you won't modify anything else), and only then can you discover the true performance of your algorithm.
 
@@ -113,11 +131,12 @@ The author wishes to eventually implement the following further features (but pu
 * Use a non-linear performance example
 * Allow choosable fitness function and `Program` building blocks
 * Better printing of programs (with parentheses, or infix notation, graphviz like GPLearn, or spreadsheet formulas...)
-* Allow richer predictions, returning percentiles (which would inform of model uncertainty)
 * Gradient descent for constants
     * Can be implemented as a mutation; but must tune its performance (i.e., how often should it happen, how much time to spend etc.)
+    * Consider Adam optimizer
 * Evaluation caching 
     * Remember last N program scores in a dictionary regardless of score
+* Allow richer predictions, returning percentiles (which would inform of model uncertainty)
 * Allow `fit_partial` straight from `symreg`, to continue training from an interactive session
 * Pretty plots while training
     * Perhaps a UI like Formulize?
