@@ -10,24 +10,22 @@ SymReg is available on PyPI: you can install it using `pip install symreg`.
 
 ```python
 from symreg import Regressor
+import random
 
-r = Regressor(duration=5, verbose=True, stagnation_limit=100)
-X = [[1, 0], [0, 1], [1, 2], [-1, -2]]
-y = [.5, .5, 1.5, -1.5]     # We want the average of the arguments
+random.seed(0)
+
+r = Regressor(stagnation_limit=20, verbose=True)
+X = [[random.random()-.5, random.random()-.5] for _ in range(100)]
+y = [(x[0] + x[1])/2 for x in X]     # We want the average of the arguments
 
 r.fit(X, y)
 
 for score in r.results():
     print(score)
-# {'error': 1.1875003470765195, 'complexity': 2, 'program': Program('exp -1.3839406053570065', 2)}
-# {'error': 0.25, 'complexity': 3, 'program': Program('neg neg $1', 2)}
-# {'error': 0.25, 'complexity': 3, 'program': Program('neg neg $0', 2)}
-# {'error': 0.07646678112187726, 'complexity': 4, 'program': Program('div $1 neg -1.3959881664397722', 2)}
-# {'error': 0.0, 'complexity': 6, 'program': Program('div add $0 $1 neg -2', 2)}
-# {'error': 0.0, 'complexity': 6, 'program': Program('div add $1 $0 neg -2', 2)}
 
-# Program('div add $0 $1 neg -2', 2) means (a + b)/(-(-2)), which is equivalent to (a+b)/2
-# It also found an argument-swapped version, and some simpler approximations.
+# {'error': 0.19027682154977618, 'complexity': 1, 'program': Program('$0', 2)}
+# {'error': 0.13948173984343024, 'complexity': 3, 'program': Program('div $0 1.8705715685399509', 2)}
+# {'error': 0.0, 'complexity': 5, 'program': Program('div add $0 $1 2.0', 2)}
 
 r.predict([4, 6])
 # array([5.])
@@ -35,12 +33,22 @@ r.predict([4, 6])
 
 r.predict([[4, 6], [1, 2]])
 # array([5. , 1.5])
-# Also handles vectorized data. Note that a row is a set of parameters.
+# It also handles vectorized data.
 # Here, $0=4 and $1=6 for the first row, and $0=1 and $1=2 for the second row in the 2d array.
-
 ```
 
 You can see more examples of usage in the [Jupyter Notebook file](Metaopt.ipynb).
+
+
+## Performance
+
+![](sklearn-diabetes.svg)
+
+SymReg 0.0.2 can reach 60 MAE error on the `sklearn` diabetes dataset in about 0.1 seconds, while GPLearn 0.4.1 takes about 18 seconds. That is a 180-fold improvement.
+
+Still, this is a linear regression problem. We both pale in comparison with a dedicated linear regression algorithm: `sklearn.linear_model.LinearRegression`, who is yet another 100-fold faster than SymReg.
+
+Benchmarking was done on a single core of an Intel(R) Core(TM) i7-4710HQ CPU on power saver, with TurboBoost off. Only addition, subtraction, multiplication, and division were allowed.
 
 ## Inspiration
 
@@ -98,23 +106,20 @@ Running all tests can be done with `pytest`. You can make the system pretend it'
 
 The author wishes to eventually implement the following further features (but pull requests are welcome as well, of course):
 
-* ~~Switch the Program representation to a tree instead of a tuple.~~ This would allow:
-    * ~~Crossover between individuals~~
-    * Better printing of programs (with parentheses, or infix notation, or spreadsheet formulas...)
-    * Better simplification (right now, only constants are simplified)
-* Split validation data from training data
-    * early stopping on validation error increase instead of staleness of training error
-* More crossover for more successful individuals? 
-* Allow choosable fitness function and function building blocks
 * Multiprocessing (threading is not enough, because we're CPU bound and there is the GIL).
-* Implement predict_proba, which polls all the individuals in a population?
-* Pretty plots while training
-    * Perhaps a UI like Formulize?
-* Evaluation caching 
-    * Remember last N program scores in a dictionary regardless of score
+* Split validation data from training data
+    * stopping criterion on validation error increase
+        * but must allow for random error fluctuations
+* Use a non-linear performance example
+* Allow choosable fitness function and `Program` building blocks
+* Better printing of programs (with parentheses, or infix notation, graphviz like GPLearn, or spreadsheet formulas...)
+* Allow richer predictions, returning percentiles (which would inform of model uncertainty)
 * Gradient descent for constants
     * Can be implemented as a mutation; but must tune its performance (i.e., how often should it happen, how much time to spend etc.)
-* Automated speed and quality tests (currently, we test manually using the notebook and/or profiler).
-* Allow `fit_partial` straight from `symreg`
+* Evaluation caching 
+    * Remember last N program scores in a dictionary regardless of score
+* Allow `fit_partial` straight from `symreg`, to continue training from an interactive session
+* Pretty plots while training
+    * Perhaps a UI like Formulize?
 
 Feedback is appreciated. Please comment as a GitHub issue, or any other way ([you can contact the author directly here](https://danuker.go.ro/pages/contactabout.html)).
