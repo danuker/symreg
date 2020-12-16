@@ -119,6 +119,15 @@ def test_pandas_columns_as_arg_names():
     assert ('$0' not in program) and ('$1' not in program)
 
 
+def test_pandas_series_input():
+    X = pd.Series([1, 2, 3, 4, 5])
+    y = X * 2
+
+    r = make_seeded_regressor(generations=10)
+    r.fit(X, y)
+    assert all(r.predict(X) == y)
+
+
 def test_stopping_conditions():
     X = pd.DataFrame({
         'a': [1, 2, 3, 4, 5],

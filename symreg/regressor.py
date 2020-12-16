@@ -15,7 +15,7 @@ class Configuration:
     complete_tree_as_new_subtree_chance: float = .5
     mutation_children: float = .7
     crossover_children: float = .7
-    simplify_chance: float = .5
+    simplify_chance: float = .1
     int_std: float = 3
     float_std: float = 4
 
@@ -36,7 +36,7 @@ class Regressor:
             complete_tree_as_new_subtree_chance=.5,
             mutation_children=.7,
             crossover_children=.7,
-            simplify_chance=.5,
+            simplify_chance=.1,
             int_std=3,
             float_std=4,
     ):

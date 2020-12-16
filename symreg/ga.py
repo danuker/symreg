@@ -379,10 +379,14 @@ class GA:
 
     def _from_df(self, X):
         """Transpose the X array into columns as args"""
-        Xa = np.array(X, ndmin=2)
+        Xa = np.array(X)
+
+        if len(Xa.shape) == 1:
+            # We have a row vector (such as a Pandas Series). Automatically turn it to a column vector.
+            Xa = np.array(Xa, ndmin=2).transpose()
 
         if len(Xa.shape) > 2:
-            raise ValueError(f'Invalid args shape: {Xa.shape}')
+            raise ValueError(f'Invalid args shape: {Xa.shape}. You need a row per data point.')
 
         if self._max_arity is not None and Xa.shape[1] != self._max_arity:
             raise ValueError(
