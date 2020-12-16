@@ -4,7 +4,7 @@ This is a file documenting the release process (I'd have to look it up every tim
 * Run tests: 
   * `pytest`
 * Add tag: 
-  * `git tag v0.0.3`
+  * `git tag vX.X.X`
 * Push, and push tags: 
   * `git push`
   * `git push --tags`
