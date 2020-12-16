@@ -69,28 +69,9 @@ Still, I personally prefer to avoid changing the sign of data - it makes interpr
 
 ![](diabetes.svg)
 
-|Goal       |GPLearn 0.4.1|SymReg 0.0.3|Speedup|
-|-----------|-------------|------------|-------|
-|MAE < 0.75 | 0.039 s     | 0.027 s    |1.44   |
-|MAE < 0.7  | 0.073 s     | 0.044 s    |1.65   |
-|MAE < 0.69 | 0.073 s     | 0.044 s    |1.65   |
-|MAE < 0.68 | 0.073 s     | 0.044 s    |1.65   |
-|MAE < 0.67 | 0.808 s     | 0.044 s    |200.1  |
-|MAE < 0.66 | 0.848 s     | 0.079 s    |10.73  |
-|MAE < 0.65 | 0.848 s     | 0.079 s    |10.73  |
-|MAE < 0.6  | 0.848 s     | 0.289 s    |2.93   |
-|MAE < 0.595| 12.64 s     | 0.377 s    |33.52  |
-|MAE < 0.59 | 13.38 s     | 0.377 s    |35.49  |
+While `symreg` is faster than `gplearn`, I suspect there can be a significant improvement by using multithreading. The problem is, due to the Global Interpreter Lock, and to the fact that genetic programming code is CPU bound, we can't easily parallelize the code.
 
-In the table, we found the shortest time achieving certain mean absolute errors, and shows SymReg's speedup ratio (greater is better). Each model was run 200 times in total. As you can see, SymReg is a lot faster in many cases. 
-
-Due to its sensitivity to the population size, we trained `gplearn` with two population sizes: its default of 1000, and SymReg's default of 50. It seems the evolution progresses very slowly after the first generation. We also tried SymReg with a population of 1000, but it seems to be universally worse compared to the default of 50.
-
-As `gplearn` does not use Pareto-optimality, its solutions are evaluated in just one dimension instead of two, and are therefore "choppier". Given this choppiness, I recommend use of meta-optimization with it. SymReg seems to behave better with its default parameters, even on a different dataset than it was tuned on.
-
-Still, this is mostly a linear regression problem. Both GP models pale in comparison with a dedicated linear regression algorithm: `sklearn.linear_model.LinearRegression`. SymReg was ~1600 times slower (4.765 seconds) than the slowest run of LinearRegression. This means Genetic Programming should only be used where the flexibility is needed.
-
-Do you have or know of a highly non-linear dataset? Please [send it to me](mailto:danuthaiduc@gmail.com) so I can further benchmark.
+Do you have or know any easy ways to get multithreading? Please share them as a GitHub issue or via [e-mail](mailto:danuthaiduc@gmail.com) so I can further optimize.
 
 Benchmarking was done on the `sklearn` diabetes dataset. To prevent thermal variance, I used a single core of an Intel(R) Core(TM) i7-4710HQ CPU on power saver, with TurboBoost off. Only addition, subtraction, multiplication, and division were allowed. See the `benchmark_vs_gplearn` branch for the specific code.
 
@@ -125,10 +106,9 @@ Running all tests can be done with `pytest`. You can make the system pretend it'
 The author wishes to eventually implement the following further features (but pull requests are welcome as well, of course):
 
 * Multiprocessing (threading is not enough, because we're CPU bound and there is the GIL).
+    * Problem: new process takes about 200ms. Program evaluation must take longer than that to be worth it. It might be, for very large problems. I tried multiprocessing and multithreading on the `parallel` branch (in hopes NumPy parallelizes computation inside), but it is slower than a single thread. If you have any tips on getting NumPy to run multithreaded, please share them.
 * Split validation data from training data
-    * stopping criterion on validation error increase
-        * but must allow for random error fluctuations
-* Use a non-linear performance example
+    * stopping criterion on validation error stagnation (failure to improve in X generations)
 * Allow choosable fitness function and `Program` building blocks
 * Better printing of programs (with parentheses, or infix notation, graphviz like GPLearn, or spreadsheet formulas...)
 * Gradient descent for constants
