@@ -78,6 +78,7 @@ def test_simplify():
     assert_simplified('sub 0.0 $a', 'neg $a')
     assert_simplified('add 0.0 sub $a $b', 'sub $a $b')
     assert_simplified('add sub $a $b 0.0', 'sub $a $b')
+    assert_simplified('pow rec 0.5 $a', 'pow 2.0 $a')
 
 
 def test_point_mutate():

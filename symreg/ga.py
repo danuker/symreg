@@ -351,7 +351,7 @@ class Program:
             opt_tree = opt_fun(args)
             if opt_tree is not None:
                 return opt_tree
-        return tree
+        return op, *args
 
     def simplify(self):
         simplified = self._simplify_tree(self._p)
