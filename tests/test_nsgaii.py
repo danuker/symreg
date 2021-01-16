@@ -5,18 +5,19 @@ from symreg.nsgaii import fast_non_dominated_sort, crowding_distance_assignment,
 
 def test_fast_non_dominated_sort():
     for sort in ['2d', 'nd']:
+        def sorter(scores):
+            return fast_non_dominated_sort(scores, 1e9, sort)
 
-        assert fast_non_dominated_sort({}, sort) == \
-               {}
-        assert fast_non_dominated_sort({'best1': (1, 2), 'best2': (2, 1)}, sort) == \
+        assert sorter({}) == {}
+        assert sorter({'best1': (1, 2), 'best2': (2, 1)}) == \
                {1: {'best1', 'best2'}}
-        assert fast_non_dominated_sort({'best1': (1, 2), 'best2': (2, 1), 'worse': (2, 2)}, sort) == \
+        assert sorter({'best1': (1, 2), 'best2': (2, 1), 'worse': (2, 2)}) == \
                {1: {'best1', 'best2'}, 2: {'worse'}}
 
-        assert fast_non_dominated_sort({'worse': (1, 2), 'best_inf': (float('-inf'), 2)}, sort) == \
+        assert sorter({'worse': (1, 2), 'best_inf': (float('-inf'), 2)}) == \
                {1: {'best_inf'}, 2: {'worse'}}
 
-        assert fast_non_dominated_sort({'worse': (float('inf'), 2), 'best': (1, 2)}, sort) == \
+        assert sorter({'worse': (float('inf'), 2), 'best': (1, 2)}) == \
                {1: {'best'}, 2: {'worse'}}
 
 

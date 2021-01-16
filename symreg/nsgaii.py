@@ -23,10 +23,11 @@ class SolutionScore:
         return at_least_as_good and better_in_some_respect
 
 
-def fast_non_dominated_sort(scores: dict, sort=None) -> dict:
+def fast_non_dominated_sort(scores: dict, n_out, sort=None) -> dict:
     """
         Group individuals by rank of their Pareto front
         :param scores: {individual -> (score1, score2, ...)}
+        :param n_out: Number of output individuals
         :param sort: '2d' for cheap, 'nd' for general
         :returns {individual: Pareto rank}
     """
@@ -44,7 +45,7 @@ def fast_non_dominated_sort(scores: dict, sort=None) -> dict:
         sort = '2d' if dims == 2 else 'nd'
 
     if sort == '2d':
-        fronts = _2dim_pareto_ranking(scores)
+        fronts = _2dim_pareto_ranking(scores, n_out)
     elif sort == 'nd':
         fronts = ndim_pareto_ranking(scores)
     else:
@@ -68,14 +69,16 @@ def _get_2d_front(sol_scores):
     return front
 
 
-def _2dim_pareto_ranking(sol_scores):
+def _2dim_pareto_ranking(sol_scores, n_out):
     fronts = {}
     i = 0
+    n_so_far = 0
     remaining = sol_scores
-    while remaining:
+    while remaining and n_so_far < n_out:
         i += 1
         fronts[i] = _get_2d_front(remaining)
         remaining.difference_update(fronts[i])
+        n_so_far += len(fronts[i])
 
     return fronts
 
@@ -167,7 +170,7 @@ def nsgaii_cull(start_pop, n_out, sort=None):
     :param sort:        '2d' for cheap 2d, 'nd' for general
     :return:            {individual -> (score1, score2, ...), ...}
     """
-    pareto_front = fast_non_dominated_sort(start_pop, sort)
+    pareto_front = fast_non_dominated_sort(start_pop, n_out, sort)
     crowding_distance = crowding_distance_assignment(start_pop)
     end_pop = []
     for front in sorted(pareto_front.keys()):
