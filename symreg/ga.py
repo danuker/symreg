@@ -5,7 +5,11 @@ from itertools import chain
 import numpy as np
 from .nsgaii import nsgaii_cull
 
-np.seterr(all='ignore')  # We know we will get numerical funny business
+
+# Infinitely punish undefined / erroneous operations.
+# We do not punish divide, because it treats infinities correctly.
+np.seterr(divide='ignore', over='raise', under='raise', invalid='raise')
+
 
 blocks = {
     # name: (function, arity)
@@ -23,9 +27,25 @@ blocks = {
     # Arity 0: args ($0, $1...) and constants
 }
 
-arities = defaultdict(lambda: 0, {name: v[1] for name, v in blocks.items()})
-opnames = {v[0]: opname for opname, v in blocks.items()}
-ops_from_name = {opname: v[0] for opname, v in blocks.items()}
+
+def arity(opname):
+    try:
+        return blocks[opname][1]
+    except KeyError:
+        # Not in blocks; must be a constant.
+        return 0
+
+
+def op_from_opname(opname):
+    # Regular lookup of function from its name.
+    return blocks[opname][0]
+
+
+def opname_from_op(function):
+    # Reverse lookup of name of function, from function itself.
+    for name, (func, _) in blocks.items():
+        if func == function:
+            return name
 
 
 def fitness(program, Xt, y):
@@ -34,10 +54,10 @@ def fitness(program, Xt, y):
         y_est = program.eval(Xt)
         diff = np.subtract(y, y_est)
         error = np.sqrt(np.average(np.square(diff)))
-        if error < 0 or math.isnan(error):
+        if isinstance(error, complex) or error < 0 or math.isnan(error):
             return float('inf'), complexity
         return error, complexity
-    except ValueError:
+    except ArithmeticError:
         return float('inf'), complexity
 
 
@@ -74,7 +94,7 @@ def _eval_block(token: str):
 def _ops_with_same_arity(op):
     return tuple(
         name for name in blocks
-        if arities[op] == arities[name] and name != op
+        if arity(op) == arity(name) and name != op
     )
 
 
@@ -145,9 +165,9 @@ class Program:
         if not source:
             return (), ()
 
-        first, arity = _eval_block(source[0])
+        first, _arity = _eval_block(source[0])
         rest = source[1:]
-        if not arity:
+        if not _arity:
             is_var = isinstance(first, str) and first[0] == '$'
             if self.columns and is_var:
                 try:
@@ -157,7 +177,7 @@ class Program:
             return first, rest
 
         args = ()
-        while len(args) < arity:
+        while len(args) < _arity:
             newarg, rest = self._from_source(rest)
             args = args + (newarg,)
         return (first,) + args, rest
@@ -183,10 +203,12 @@ class Program:
         evaldargs = tuple(self._eval(p, args) for p in program[1:])
 
         func = program[0]
-        funcname = opnames[func]
-        if len(evaldargs) != arities[funcname]:
-            raise ValueError(f'Arity mismatch. '
-                             f' {funcname} expects {arities[funcname]} args but got: {evaldargs}')
+        funcname = opname_from_op(func)
+        if len(evaldargs) != arity(funcname):
+            raise ValueError(
+                f'Arity mismatch. '
+                f' {funcname} expects {arity(funcname)} args'
+                f' but got: {evaldargs}')
 
         return func(*evaldargs)
 
@@ -289,7 +311,7 @@ class Program:
         if is_elementary(tree):
             return str(tree),
         else:
-            funcname = opnames[tree[0]]
+            funcname = opname_from_op(tree[0])
             return (funcname,) + tuple(p for arg in tree[1:] for p in self._to_source(arg))
 
     def _new_leaf(self, op):
@@ -315,12 +337,12 @@ class Program:
     @staticmethod
     def optimize_add(args):
         if not is_elementary(args[1]):
-            if opnames[args[1][0]] == 'neg':
-                return ops_from_name['sub'], args[0], args[1][1]
+            if opname_from_op(args[1][0]) == 'neg':
+                return op_from_opname('sub'), args[0], args[1][1]
 
         if not is_elementary(args[0]):
-            if opnames[args[0][0]] == 'neg':
-                return ops_from_name['sub'], args[1], args[0][1]
+            if opname_from_op(args[0][0]) == 'neg':
+                return op_from_opname('sub'), args[1], args[0][1]
 
         if args[0] == 0.0:
             return args[1]
@@ -333,20 +355,22 @@ class Program:
         if args[1] == 0:
             return args[0]
         if args[0] == 0:
-            return ops_from_name['neg'], args[1]
+            return op_from_opname('neg'), args[1]
 
     def _simplify_tree(self, tree):
         if is_elementary(tree):
             return tree
 
         op, args = tree[0], tree[1:]
-        opname = opnames[op]
         args = tuple(self._simplify_tree(arg) for arg in args)
 
         if all(is_constant(arg) for arg in args):
-            return op(*args)
+            try:
+                return op(*args)
+            except ArithmeticError:
+                pass
 
-        opt_fun = self.optimizers.get(opname)
+        opt_fun = self.optimizers.get(opname_from_op(op))
         if opt_fun is not None:
             opt_tree = opt_fun(args)
             if opt_tree is not None:
@@ -429,7 +453,7 @@ class GA:
 
     def _get_random(self, proportion):
         target_size = int(proportion * len(self.individuals))
-        target = self.individuals * int(proportion+1)
+        target = self.individuals * int(proportion + 1)
         return (random.choice(target) for _ in range(target_size))
 
     def _step(self, Xt, y):

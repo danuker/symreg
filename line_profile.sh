@@ -1,6 +1,10 @@
 #!/bin/bash
-# Line profiler: find out what lines slow
-# Need to decorate desired functions with @profile beforehand
+# Line profiler: find out what lines are slow
+# Need to decorate desired functions with @profile beforehand; not so convenient.
+
+# Shoululd use viztracer instead! Much nicer output.
+# pip install viztracer
+# viztracer tests/test_regressor.py
 
 rm "$1.lprof"
 kernprof -l "$1"

@@ -8,6 +8,8 @@ SymReg is available on PyPI: you can install it using `pip install symreg`.
 
 ## Usage demo
 
+### Simplest use
+
 ```python
 from symreg import Regressor
 import random
@@ -35,9 +37,30 @@ r.predict([[4, 6], [1, 2]])
 # array([5. , 1.5])
 # It also handles vectorized data.
 # Here, $0=4 and $1=6 for the first row, and $0=1 and $1=2 for the second row in the 2d array.
+
 ```
 
-You can see more examples of usage in the [Jupyter Notebook file](Metaopt.ipynb).
+### Adding a custom building block
+
+```python
+import symreg
+import random
+import numpy as np
+symreg.ga.blocks['xor'] = (lambda x, y: np.logical_xor(x, y).astype(int), 2)
+
+random.seed(0)
+r = symreg.Regressor(generations=200)
+X = [[0, 0], [0, 1], [1, 0], [1, 1]]
+y = [0, 1, 1, 0]
+
+r.fit(X, y)
+# There should be an xor operation in the results:
+print(r.results())
+
+```
+
+You can see more examples of usage in [test_regressor.py](tests/test_regressor.py) 
+or in the [Jupyter Notebook file](Metaopt.ipynb).
 
 ## Inspiration
 
@@ -109,7 +132,6 @@ The author wishes to eventually implement the following further features (but pu
     * Problem: new process takes about 200ms. Program evaluation must take longer than that to be worth it. It might be, for very large problems. I tried multiprocessing and multithreading on the `parallel` branch (in hopes NumPy parallelizes computation inside), but it is slower than a single thread. If you have any tips on getting NumPy to run multithreaded, please share them.
 * Split validation data from training data
     * stopping criterion on validation error stagnation (failure to improve in X generations)
-* Allow choosable fitness function and `Program` building blocks
 * Better printing of programs (with parentheses, or infix notation, graphviz like GPLearn, or spreadsheet formulas...)
 * Gradient descent for constants
     * Can be implemented as a mutation; but must tune its performance (i.e., how often should it happen, how much time to spend etc.)
@@ -122,3 +144,4 @@ The author wishes to eventually implement the following further features (but pu
     * Perhaps a UI like Formulize?
 
 Feedback is appreciated. Please comment as a GitHub issue, or any other way ([you can contact the author directly here](https://danuker.go.ro/pages/contactabout.html)).
+GitHub issues are also the preferred method for support requests, because it allows others to learn from your questions.

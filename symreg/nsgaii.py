@@ -145,13 +145,13 @@ def crowding_distance_assignment(scores: dict) -> dict:
                     distance[i] = float('inf')
 
             for i in range(1, len(inds) - 1):
-                earlier = scores[inds[i + 1]]
-                later = scores[inds[i - 1]]
-                space = (earlier[m] - later[m])
-                normalized = (fm_max - fm_min)
                 try:
+                    earlier = scores[inds[i + 1]]
+                    later = scores[inds[i - 1]]
+                    space = (earlier[m] - later[m])
+                    normalized = (fm_max - fm_min)
                     distance[inds[i]] += space / normalized
-                except ZeroDivisionError:
+                except ArithmeticError:
                     distance[inds[i]] = float('inf')
 
     except IndexError:

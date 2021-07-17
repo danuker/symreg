@@ -129,6 +129,8 @@ def test_fitness():
     assert fitness(Program('$0', 1), [[1]], [[1]]) == (0, 1)
     assert fitness(Program('nan', 1), [[1]], [[1]]) == (float('inf'), 1)
     assert fitness(Program('div 1 0', 1), [[1]], [[1]]) == (float('inf'), 3)
+    assert fitness(Program('rec add $1 $0', 2), [[0], [0]], [[0]]) ==\
+           (float('inf'), 4)
 
 
 if __name__ == '__main__':

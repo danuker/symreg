@@ -3,6 +3,7 @@ from time import time
 
 import pandas as pd
 
+import symreg.ga
 from symreg.regressor import Regressor
 
 
@@ -57,8 +58,8 @@ def test_deterministic():
     https://stackoverflow.com/questions/36317520/seeded-python-rng-showing-non-deterministic-behavior-with-sets
     """
 
-    X = [(random.gauss(0, 10), random.gauss(0, 10)) for _ in range(5)]
-    y = [a*7.11 - b ** 7.13212 for a, b in X]  # Ideal program should be: 'sub $0 $1'
+    X = [(random.gauss(0, 10), random.gauss(0, 10)) for _ in range(500)]
+    y = [a*7.11 - b ** 7.13212 for a, b in X]
 
     r = make_seeded_regressor(generations=10, n=10)
     r.fit(X, y)
@@ -151,6 +152,27 @@ def test_stopping_conditions():
     assert r.training_details['stagnated_generations'] == target_stagnation
 
 
+def test_xor():
+    """Demonstrate adding a block."""
+
+    import numpy as np
+
+    # The operation named 'xor' gets
+    # a lambda assigned to it (first element of the tuple),
+    # with arity 2 (second element of the tuple).
+    symreg.ga.blocks['xor'] = (
+        lambda x, y: np.logical_xor(x, y).astype(int),
+        2
+        )
+
+    r = make_seeded_regressor(generations=200)
+    X = [[0, 0], [0, 1], [1, 0], [1, 1]]
+    y = [0, 1, 1, 0]
+
+    r.fit(X, y)
+    assert 'xor' in str(r.results())
+
+
 if __name__ == '__main__':
     import pytest
 
@@ -163,3 +185,4 @@ if __name__ == '__main__':
     # test_pandas_columns_as_arg_names()
     # test_deterministic()
     # test_stopping_conditions()
+    # test_xor()
